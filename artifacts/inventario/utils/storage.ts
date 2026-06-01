@@ -9,6 +9,7 @@ export interface Almacen {
 export interface Articulo {
   id: string;
   nombre: string;
+  foto?: string;
   creadoEn: string;
 }
 
