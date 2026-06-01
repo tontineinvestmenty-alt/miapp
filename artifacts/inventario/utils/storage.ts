@@ -32,12 +32,19 @@ export interface Movimiento {
 
 export type EstadoPedido = "comprado" | "en_casillero" | "enviado_cuba" | "en_almacen";
 
+export interface PedidoArticulo {
+  articuloId: string;
+  articuloNombre: string;
+  cantidad: number;
+}
+
 export interface Pedido {
   id: string;
   numeroCompra: string;
   numeroSeguimiento: string;
   fechaCompra: string;
   estado: EstadoPedido;
+  articulos: PedidoArticulo[];
   almacenId?: string;
   almacenNombre?: string;
   notas?: string;
