@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "2XzQdrbmqttEkbffRVcXz"
+uri = "file://artifacts/inventario/assets/images/icon.png"
+type = "image"
+title = "inventario app icon"
