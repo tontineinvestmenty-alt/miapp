@@ -30,11 +30,26 @@ export interface Movimiento {
   hora: string;
 }
 
+export type EstadoPedido = "comprado" | "en_casillero" | "enviado_cuba" | "en_almacen";
+
+export interface Pedido {
+  id: string;
+  numeroCompra: string;
+  numeroSeguimiento: string;
+  fechaCompra: string;
+  estado: EstadoPedido;
+  almacenId?: string;
+  almacenNombre?: string;
+  notas?: string;
+  creadoEn: string;
+}
+
 const KEYS = {
   almacenes: "inventario_almacenes",
   articulos: "inventario_articulos",
   stock: "inventario_stock",
   historial: "inventario_historial",
+  pedidos: "inventario_pedidos",
 };
 
 export function genId() {
@@ -138,6 +153,16 @@ export async function setStockDirect(
   const all = await getStock();
   all[stockKey(almacenId, articuloId)] = Math.max(0, cantidad);
   await set(KEYS.stock, all);
+}
+
+// ─── Pedidos ──────────────────────────────────────────────────────────────────
+
+export async function getPedidos(): Promise<Pedido[]> {
+  return get<Pedido[]>(KEYS.pedidos);
+}
+
+export async function savePedidos(list: Pedido[]): Promise<void> {
+  return set(KEYS.pedidos, list);
 }
 
 // ─── Historial ────────────────────────────────────────────────────────────────

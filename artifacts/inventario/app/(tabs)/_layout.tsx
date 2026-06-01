@@ -20,6 +20,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "cube", selected: "cube.fill" }} />
         <Label>Artículos</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="pedidos">
+        <Icon sf={{ default: "shippingbox", selected: "shippingbox.fill" }} />
+        <Label>Pedidos</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="resumen">
         <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
         <Label>Resumen</Label>
@@ -74,6 +78,14 @@ function ClassicTabLayout() {
           title: "Artículos",
           tabBarIcon: ({ color }) =>
             isIOS ? <SymbolView name="cube" tintColor={color} size={24} /> : <Feather name="box" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="pedidos"
+        options={{
+          title: "Pedidos",
+          tabBarIcon: ({ color }) =>
+            isIOS ? <SymbolView name="shippingbox" tintColor={color} size={24} /> : <Feather name="truck" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
