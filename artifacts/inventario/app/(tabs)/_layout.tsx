@@ -16,6 +16,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "archivebox", selected: "archivebox.fill" }} />
         <Label>Almacenes</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="articulos">
+        <Icon sf={{ default: "cube", selected: "cube.fill" }} />
+        <Label>Artículos</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -34,11 +38,7 @@ function ClassicTabLayout() {
         tabBarInactiveTintColor: colors.mutedForeground,
         headerShown: true,
         headerStyle: { backgroundColor: colors.card },
-        headerTitleStyle: {
-          color: colors.foreground,
-          fontFamily: "Inter_700Bold",
-          fontSize: 18,
-        },
+        headerTitleStyle: { color: colors.foreground, fontFamily: "Inter_700Bold", fontSize: 18 },
         headerShadowVisible: false,
         tabBarStyle: {
           position: "absolute",
@@ -50,18 +50,9 @@ function ClassicTabLayout() {
         },
         tabBarBackground: () =>
           isIOS ? (
-            <BlurView
-              intensity={100}
-              tint={isDark ? "dark" : "light"}
-              style={StyleSheet.absoluteFill}
-            />
+            <BlurView intensity={100} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
           ) : isWeb ? (
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: colors.background },
-              ]}
-            />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
           ) : null,
       }}
     >
@@ -77,13 +68,23 @@ function ClassicTabLayout() {
             ),
         }}
       />
+      <Tabs.Screen
+        name="articulos"
+        options={{
+          title: "Artículos",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="cube" tintColor={color} size={24} />
+            ) : (
+              <Feather name="box" size={22} color={color} />
+            ),
+        }}
+      />
     </Tabs>
   );
 }
 
 export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
+  if (isLiquidGlassAvailable()) return <NativeTabLayout />;
   return <ClassicTabLayout />;
 }

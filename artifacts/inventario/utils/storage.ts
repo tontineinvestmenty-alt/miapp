@@ -1,0 +1,162 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+export interface Almacen {
+  id: string;
+  nombre: string;
+  creadoEn: string;
+}
+
+export interface Articulo {
+  id: string;
+  nombre: string;
+  creadoEn: string;
+}
+
+export interface StockEntry {
+  articuloId: string;
+  cantidad: number;
+}
+
+export interface Movimiento {
+  id: string;
+  almacenId: string;
+  articuloId: string;
+  articuloNombre: string;
+  tipo: "entrada" | "salida";
+  cantidad: number;
+  fecha: string;
+  hora: string;
+}
+
+const KEYS = {
+  almacenes: "inventario_almacenes",
+  articulos: "inventario_articulos",
+  stock: "inventario_stock",
+  historial: "inventario_historial",
+};
+
+export function genId() {
+  return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+}
+
+export function fechaHoy() {
+  return new Date().toLocaleDateString("es-ES");
+}
+
+export function horaAhora() {
+  return new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+}
+
+async function get<T>(key: string): Promise<T> {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : ([] as unknown as T);
+  } catch {
+    return [] as unknown as T;
+  }
+}
+
+async function set<T>(key: string, value: T): Promise<void> {
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
+
+// ─── Almacenes ────────────────────────────────────────────────────────────────
+
+export async function getAlmacenes(): Promise<Almacen[]> {
+  return get<Almacen[]>(KEYS.almacenes);
+}
+
+export async function saveAlmacenes(list: Almacen[]): Promise<void> {
+  return set(KEYS.almacenes, list);
+}
+
+export async function getAlmacenById(id: string): Promise<Almacen | undefined> {
+  const list = await getAlmacenes();
+  return list.find((a) => a.id === id);
+}
+
+// ─── Artículos ────────────────────────────────────────────────────────────────
+
+export async function getArticulos(): Promise<Articulo[]> {
+  return get<Articulo[]>(KEYS.articulos);
+}
+
+export async function saveArticulos(list: Articulo[]): Promise<void> {
+  return set(KEYS.articulos, list);
+}
+
+// ─── Stock ────────────────────────────────────────────────────────────────────
+
+export async function getStock(): Promise<Record<string, number>> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.stock);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function stockKey(almacenId: string, articuloId: string) {
+  return `${almacenId}::${articuloId}`;
+}
+
+export async function getStockAlmacen(almacenId: string): Promise<StockEntry[]> {
+  const all = await getStock();
+  const entries: StockEntry[] = [];
+  for (const [k, cantidad] of Object.entries(all)) {
+    if (k.startsWith(`${almacenId}::`)) {
+      const articuloId = k.split("::")[1];
+      if (cantidad > 0) entries.push({ articuloId, cantidad });
+    }
+  }
+  return entries;
+}
+
+export async function updateStock(
+  almacenId: string,
+  articuloId: string,
+  delta: number
+): Promise<number> {
+  const all = await getStock();
+  const key = stockKey(almacenId, articuloId);
+  const prev = all[key] ?? 0;
+  const next = Math.max(0, prev + delta);
+  all[key] = next;
+  await set(KEYS.stock, all);
+  return next;
+}
+
+export async function setStockDirect(
+  almacenId: string,
+  articuloId: string,
+  cantidad: number
+): Promise<void> {
+  const all = await getStock();
+  all[stockKey(almacenId, articuloId)] = Math.max(0, cantidad);
+  await set(KEYS.stock, all);
+}
+
+// ─── Historial ────────────────────────────────────────────────────────────────
+
+export async function getHistorial(): Promise<Movimiento[]> {
+  return get<Movimiento[]>(KEYS.historial);
+}
+
+export async function getHistorialAlmacen(almacenId: string): Promise<Movimiento[]> {
+  const all = await getHistorial();
+  return all.filter((m) => m.almacenId === almacenId);
+}
+
+export async function agregarMovimiento(mov: Omit<Movimiento, "id" | "fecha" | "hora">): Promise<void> {
+  const all = await getHistorial();
+  const nuevo: Movimiento = {
+    ...mov,
+    id: genId(),
+    fecha: fechaHoy(),
+    hora: horaAhora(),
+  };
+  all.unshift(nuevo);
+  await set(KEYS.historial, all);
+}
