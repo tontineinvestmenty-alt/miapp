@@ -20,6 +20,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "cube", selected: "cube.fill" }} />
         <Label>Artículos</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="resumen">
+        <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
+        <Label>Resumen</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -61,11 +65,7 @@ function ClassicTabLayout() {
         options={{
           title: "Almacenes",
           tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="archivebox" tintColor={color} size={24} />
-            ) : (
-              <Feather name="archive" size={22} color={color} />
-            ),
+            isIOS ? <SymbolView name="archivebox" tintColor={color} size={24} /> : <Feather name="archive" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -73,11 +73,15 @@ function ClassicTabLayout() {
         options={{
           title: "Artículos",
           tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="cube" tintColor={color} size={24} />
-            ) : (
-              <Feather name="box" size={22} color={color} />
-            ),
+            isIOS ? <SymbolView name="cube" tintColor={color} size={24} /> : <Feather name="box" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="resumen"
+        options={{
+          title: "Resumen",
+          tabBarIcon: ({ color }) =>
+            isIOS ? <SymbolView name="chart.bar" tintColor={color} size={24} /> : <Feather name="bar-chart-2" size={22} color={color} />,
         }}
       />
     </Tabs>

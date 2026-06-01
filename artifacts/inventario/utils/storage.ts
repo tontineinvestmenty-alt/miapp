@@ -10,6 +10,7 @@ export interface Articulo {
   id: string;
   nombre: string;
   foto?: string;
+  precio?: number;
   creadoEn: string;
 }
 
