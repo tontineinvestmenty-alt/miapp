@@ -130,18 +130,90 @@ export default function PedidosScreen() {
 
   function abrirDetalle(p: Pedido) { setPedidoActivo(p); setModalDetalle(true); }
 
+  function estadoAnterior(k: EstadoPedido): EstadoPedido | null {
+    const idx = ESTADOS.findIndex(e => e.key === k);
+    return idx > 0 ? ESTADOS[idx - 1].key : null;
+  }
+
   async function avanzarEstado(p: Pedido) {
     const sig = estadoSiguiente(p.estado);
     if (!sig) return;
-    if (sig === "en_almacen") {
-      setPedidoActivo(p);
-      setModalDetalle(false);
-      setModalAlmacen(true);
-      return;
-    }
-    await actualizarEstado(p.id, sig);
-    setModalDetalle(false);
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const sigI = estadoInfo(sig);
+
+    const totalUds = p.articulos?.reduce((s, a) => s + a.cantidad, 0) ?? 0;
+    const mensajeStock =
+      sig === "en_almacen" && totalUds > 0
+        ? `\n\nSe sumarán ${totalUds} unidades al stock del almacén elegido.`
+        : "";
+
+    Alert.alert(
+      `Avanzar a "${sigI.label}"`,
+      `¿Confirmas que el pedido #${p.numeroCompra} pasó a "${sigI.label}"?${mensajeStock}`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Confirmar", onPress: async () => {
+            if (sig === "en_almacen") {
+              setPedidoActivo(p);
+              setModalDetalle(false);
+              setModalAlmacen(true);
+              return;
+            }
+            await actualizarEstado(p.id, sig);
+            setModalDetalle(false);
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          },
+        },
+      ]
+    );
+  }
+
+  async function retrocederEstado(p: Pedido) {
+    const prev = estadoAnterior(p.estado);
+    if (!prev) return;
+    const prevI = estadoInfo(prev);
+
+    const tieneStock = p.estado === "en_almacen" && p.almacenId && p.articulos?.length > 0;
+    const totalUds = p.articulos?.reduce((s, a) => s + a.cantidad, 0) ?? 0;
+    const avisoStock = tieneStock
+      ? `\n\n⚠️ Se revertirán ${totalUds} unidades del stock en "${p.almacenNombre}".`
+      : "";
+
+    Alert.alert(
+      `Retroceder a "${prevI.label}"`,
+      `¿Deshacer el avance del pedido #${p.numeroCompra}? Volverá a "${prevI.label}".${avisoStock}`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Retroceder", style: "destructive", onPress: async () => {
+            if (tieneStock && p.almacenId) {
+              await Promise.all(
+                p.articulos.map(async (pa) => {
+                  await updateStock(p.almacenId!, pa.articuloId, -pa.cantidad);
+                  await agregarMovimiento({
+                    almacenId: p.almacenId!,
+                    articuloId: pa.articuloId,
+                    articuloNombre: pa.articuloNombre,
+                    tipo: "salida",
+                    cantidad: pa.cantidad,
+                  });
+                })
+              );
+            }
+            const lista = pedidos.map(x =>
+              x.id === p.id
+                ? { ...x, estado: prev, almacenId: tieneStock ? undefined : x.almacenId, almacenNombre: tieneStock ? undefined : x.almacenNombre }
+                : x
+            );
+            setPedidos(lista);
+            await savePedidos(lista);
+            setPedidoActivo(lista.find(x => x.id === p.id) ?? null);
+            setModalDetalle(false);
+            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          },
+        },
+      ]
+    );
   }
 
   async function actualizarEstado(id: string, estado: EstadoPedido, almacen?: Almacen) {
@@ -455,6 +527,16 @@ export default function PedidosScreen() {
                   </TouchableOpacity>
                 )}
 
+                {estadoAnterior(pedidoActivo.estado) && (
+                  <TouchableOpacity style={s.botonRetroceder}
+                    onPress={() => retrocederEstado(pedidoActivo)}>
+                    <Feather name="chevron-left" size={14} color={colors.mutedForeground} />
+                    <Text style={s.botonRetrocederTxt}>
+                      Retroceder a "{estadoInfo(estadoAnterior(pedidoActivo.estado)!).label}"
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
                 <View style={s.modalBotones}>
                   <TouchableOpacity style={[s.boton, s.botonCancelar]} onPress={() => setModalDetalle(false)}>
                     <Text style={s.botonCancelarTxt}>Cerrar</Text>
@@ -582,6 +664,8 @@ function makeStyles(colors: ReturnType<typeof useColors>, fabBottom: number) {
     detalleArtCant: { fontSize: 12, fontWeight: "700", color: colors.primary, fontFamily: "Inter_700Bold" },
     botonAvanzar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 12, marginTop: 4 },
     botonAvanzarTxt: { fontSize: 15, fontWeight: "700", color: "#fff", fontFamily: "Inter_700Bold" },
+    botonRetroceder: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: colors.border },
+    botonRetrocederTxt: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     modalBotones: { flexDirection: "row", gap: 10, marginTop: 4 },
     boton: { flex: 1, flexDirection: "row", paddingVertical: 13, borderRadius: 10, alignItems: "center", justifyContent: "center", gap: 6 },
     botonCancelar: { backgroundColor: colors.muted },
