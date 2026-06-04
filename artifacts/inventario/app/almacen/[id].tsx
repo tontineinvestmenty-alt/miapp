@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -178,11 +179,17 @@ export default function AlmacenDetalle() {
                 <Text style={styles.vacioTexto}>Toca + para añadir artículos a este almacén</Text>
               </View>
             }
-            renderItem={({ item }) => (
+            renderItem={({ item }) => {
+              const artFoto = articulos.find(a => a.id === item.articuloId)?.foto;
+              return (
               <View style={styles.artCard}>
-                <View style={styles.artIcono}>
-                  <Feather name="box" size={18} color={colors.primary} />
-                </View>
+                {artFoto ? (
+                  <Image source={{ uri: artFoto }} style={styles.artFoto} contentFit="cover" />
+                ) : (
+                  <View style={styles.artIcono}>
+                    <Feather name="box" size={18} color={colors.primary} />
+                  </View>
+                )}
                 <View style={styles.artInfo}>
                   <Text style={styles.artNombre}>{articuloNombre(item.articuloId)}</Text>
                   <Text style={styles.artCantidad}>
@@ -210,7 +217,8 @@ export default function AlmacenDetalle() {
                   </TouchableOpacity>
                 </View>
               </View>
-            )}
+              );
+            }}
           />
           <TouchableOpacity style={styles.fab} onPress={abrirAgregarArticulo} activeOpacity={0.85}>
             <Feather name="plus" size={28} color="#fff" />
@@ -262,7 +270,11 @@ export default function AlmacenDetalle() {
               style={{ maxHeight: 300 }}
               renderItem={({ item }) => (
                 <TouchableOpacity style={styles.artOpcion} onPress={() => seleccionarArticulo(item)}>
-                  <Feather name="box" size={16} color={colors.primary} />
+                  {item.foto ? (
+                    <Image source={{ uri: item.foto }} style={styles.artOpcionFoto} contentFit="cover" />
+                  ) : (
+                    <View style={styles.artOpcionIco}><Feather name="box" size={16} color={colors.primary} /></View>
+                  )}
                   <Text style={styles.artOpcionTexto}>{item.nombre}</Text>
                   <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
                 </TouchableOpacity>
@@ -362,6 +374,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, insets: ReturnType<typ
     vacioTexto: { fontSize: 13, color: colors.mutedForeground, textAlign: "center", paddingHorizontal: 32, fontFamily: "Inter_400Regular" },
     artCard: { backgroundColor: colors.card, borderRadius: 12, padding: 14, marginBottom: 10, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: colors.border, gap: 10 },
     artIcono: { width: 38, height: 38, borderRadius: 9, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+    artFoto: { width: 38, height: 38, borderRadius: 9 },
     artInfo: { flex: 1 },
     artNombre: { fontSize: 15, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
     artCantidad: { fontSize: 12, color: colors.mutedForeground, marginTop: 2, fontFamily: "Inter_400Regular" },
@@ -387,6 +400,8 @@ function makeStyles(colors: ReturnType<typeof useColors>, insets: ReturnType<typ
     modal: { backgroundColor: colors.card, borderRadius: 16, padding: 24, width: "100%", maxWidth: 380, gap: 14 },
     modalTitulo: { fontSize: 17, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold" },
     artOpcion: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border },
+    artOpcionFoto: { width: 32, height: 32, borderRadius: 7 },
+    artOpcionIco: { width: 32, height: 32, borderRadius: 7, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
     artOpcionTexto: { flex: 1, fontSize: 15, color: colors.foreground, fontFamily: "Inter_400Regular" },
     tipoRow: { flexDirection: "row", gap: 10 },
     tipoBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.muted },

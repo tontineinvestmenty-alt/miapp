@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -375,9 +376,11 @@ export default function PedidosScreen() {
               ) : (
                 articulosPedido.map(pa => (
                   <View key={pa.articuloId} style={s.artFila}>
-                    <View style={s.artFilaIco}>
-                      <Feather name="box" size={14} color={colors.primary} />
-                    </View>
+                    {(() => { const f = todosArticulos.find(a => a.id === pa.articuloId)?.foto; return f ? (
+                      <Image source={{ uri: f }} style={s.artFilaFoto} contentFit="cover" />
+                    ) : (
+                      <View style={s.artFilaIco}><Feather name="box" size={14} color={colors.primary} /></View>
+                    ); })()}
                     <Text style={s.artFilaNombre} numberOfLines={1}>{pa.articuloNombre}</Text>
                     <View style={s.artFilaCant}>
                       <TouchableOpacity style={s.cantBtn} onPress={() => cambiarCantidad(pa.articuloId, -1)}>
@@ -436,9 +439,11 @@ export default function PedidosScreen() {
                 style={{ maxHeight: 340 }}
                 renderItem={({ item }) => (
                   <TouchableOpacity style={s.pickFila} onPress={() => agregarArticuloPedido(item)}>
-                    <View style={s.pickIco}>
-                      <Feather name="box" size={16} color={colors.primary} />
-                    </View>
+                    {item.foto ? (
+                      <Image source={{ uri: item.foto }} style={s.pickFoto} contentFit="cover" />
+                    ) : (
+                      <View style={s.pickIco}><Feather name="box" size={16} color={colors.primary} /></View>
+                    )}
                     <Text style={s.pickNombre}>{item.nombre}</Text>
                     {item.precio != null && (
                       <Text style={s.pickPrecio}>${item.precio.toFixed(2)}</Text>
@@ -490,15 +495,22 @@ export default function PedidosScreen() {
                     <Text style={s.detalleArtsTitle}>
                       <Feather name="package" size={13} color={colors.primary} /> Artículos
                     </Text>
-                    {pedidoActivo.articulos.map(pa => (
+                    {pedidoActivo.articulos.map(pa => {
+                      const foto = todosArticulos.find(a => a.id === pa.articuloId)?.foto;
+                      return (
                       <View key={pa.articuloId} style={s.detalleArtFila}>
-                        <Feather name="box" size={13} color={colors.primary} />
+                        {foto ? (
+                          <Image source={{ uri: foto }} style={s.detalleArtFoto} contentFit="cover" />
+                        ) : (
+                          <View style={s.detalleArtIco}><Feather name="box" size={12} color={colors.primary} /></View>
+                        )}
                         <Text style={s.detalleArtNombre}>{pa.articuloNombre}</Text>
                         <View style={s.detalleArtCantBadge}>
                           <Text style={s.detalleArtCant}>{pa.cantidad} uds</Text>
                         </View>
                       </View>
-                    ))}
+                      );
+                    })}
                   </View>
                 )}
 
@@ -640,6 +652,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, fabBottom: number) {
     artVacioTxt: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: "center" },
     artFila: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.muted, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 6 },
     artFilaIco: { width: 28, height: 28, borderRadius: 7, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+    artFilaFoto: { width: 28, height: 28, borderRadius: 7 },
     artFilaNombre: { flex: 1, fontSize: 13, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
     artFilaCant: { flexDirection: "row", alignItems: "center", gap: 6 },
     cantBtn: { width: 26, height: 26, borderRadius: 7, backgroundColor: colors.card, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border },
@@ -648,6 +661,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, fabBottom: number) {
     pickVacio: { alignItems: "center", paddingVertical: 24, gap: 8 },
     pickFila: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
     pickIco: { width: 34, height: 34, borderRadius: 8, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+    pickFoto: { width: 34, height: 34, borderRadius: 8 },
     pickNombre: { flex: 1, fontSize: 14, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
     pickPrecio: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     // detalle
@@ -659,6 +673,8 @@ function makeStyles(colors: ReturnType<typeof useColors>, fabBottom: number) {
     detalleArtsBox: { backgroundColor: colors.muted, borderRadius: 10, padding: 12, gap: 6, marginVertical: 4 },
     detalleArtsTitle: { fontSize: 12, fontWeight: "700", color: colors.primary, fontFamily: "Inter_700Bold", marginBottom: 4 },
     detalleArtFila: { flexDirection: "row", alignItems: "center", gap: 8 },
+    detalleArtFoto: { width: 26, height: 26, borderRadius: 6 },
+    detalleArtIco: { width: 26, height: 26, borderRadius: 6, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
     detalleArtNombre: { flex: 1, fontSize: 13, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
     detalleArtCantBadge: { backgroundColor: colors.accent, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
     detalleArtCant: { fontSize: 12, fontWeight: "700", color: colors.primary, fontFamily: "Inter_700Bold" },
