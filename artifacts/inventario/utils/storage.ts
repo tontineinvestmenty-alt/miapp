@@ -196,6 +196,36 @@ export async function agregarMovimiento(mov: Omit<Movimiento, "id" | "fecha" | "
   await set(KEYS.historial, all);
 }
 
+// ─── Backup ───────────────────────────────────────────────────────────────────
+
+export interface BackupData {
+  version: 1;
+  exportadoEn: string;
+  almacenes: Almacen[];
+  articulos: Articulo[];
+  stock: Record<string, number>;
+  historial: Movimiento[];
+  pedidos: Pedido[];
+}
+
+export async function crearBackup(): Promise<BackupData> {
+  const [almacenes, articulos, stock, historial, pedidos] = await Promise.all([
+    getAlmacenes(), getArticulos(), getStock(), getHistorial(), getPedidos(),
+  ]);
+  return { version: 1, exportadoEn: new Date().toISOString(), almacenes, articulos, stock, historial, pedidos };
+}
+
+export async function restaurarBackup(data: BackupData): Promise<void> {
+  if (!data || data.version !== 1) throw new Error("Formato de backup inválido");
+  await Promise.all([
+    set(KEYS.almacenes, data.almacenes ?? []),
+    set(KEYS.articulos, data.articulos ?? []),
+    set(KEYS.stock, data.stock ?? {}),
+    set(KEYS.historial, data.historial ?? []),
+    set(KEYS.pedidos, data.pedidos ?? []),
+  ]);
+}
+
 // ─── Exportar ─────────────────────────────────────────────────────────────────
 
 const ESTADO_LABEL: Record<string, string> = {

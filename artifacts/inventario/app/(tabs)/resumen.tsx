@@ -16,12 +16,15 @@ import {
 } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
+import { exportarArchivoBackup, seleccionarArchivoBackup } from "@/utils/backup";
 import {
   Articulo,
+  BackupData,
   exportarTexto,
   getAlmacenes,
   getArticulos,
   getStock,
+  restaurarBackup,
 } from "@/utils/storage";
 
 interface FilaResumen {
@@ -46,6 +49,11 @@ export default function ResumenScreen() {
   const [exportando, setExportando] = useState(false);
   const [modalExport, setModalExport] = useState(false);
   const [textoExport, setTextoExport] = useState("");
+  const [backupExportando, setBackupExportando] = useState(false);
+  const [backupImportando, setBackupImportando] = useState(false);
+  const [backupPendiente, setBackupPendiente] = useState<BackupData | null>(null);
+  const [modalConfirmRestore, setModalConfirmRestore] = useState(false);
+  const [mensajeBackup, setMensajeBackup] = useState<{ ok: boolean; texto: string } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -102,6 +110,49 @@ export default function ResumenScreen() {
       await navigator.clipboard.writeText(textoExport);
     } catch {}
     setModalExport(false);
+  }
+
+  async function hacerExportBackup() {
+    setBackupExportando(true);
+    setMensajeBackup(null);
+    try {
+      await exportarArchivoBackup();
+      setMensajeBackup({ ok: true, texto: "Backup exportado correctamente." });
+    } catch {
+      setMensajeBackup({ ok: false, texto: "Error al exportar el backup." });
+    } finally {
+      setBackupExportando(false);
+    }
+  }
+
+  async function seleccionarBackup() {
+    setBackupImportando(true);
+    setMensajeBackup(null);
+    try {
+      const data = await seleccionarArchivoBackup();
+      if (!data) { setBackupImportando(false); return; }
+      setBackupPendiente(data);
+      setModalConfirmRestore(true);
+    } catch {
+      setMensajeBackup({ ok: false, texto: "No se pudo leer el archivo." });
+    } finally {
+      setBackupImportando(false);
+    }
+  }
+
+  async function confirmarRestaurar() {
+    if (!backupPendiente) return;
+    setModalConfirmRestore(false);
+    setMensajeBackup(null);
+    try {
+      await restaurarBackup(backupPendiente);
+      setBackupPendiente(null);
+      calcular();
+      setMensajeBackup({ ok: true, texto: "Backup restaurado. Todos los datos han sido reemplazados." });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Error desconocido";
+      setMensajeBackup({ ok: false, texto: `Error: ${msg}` });
+    }
   }
 
   const filasPorUnidades = [...filas].sort((a, b) => b.totalUnidades - a.totalUnidades);
@@ -181,6 +232,56 @@ export default function ResumenScreen() {
             </View>
           ))
         )}
+
+        {/* ── Sección Backup ── */}
+        <Text style={styles.seccionTitulo}>Copia de seguridad</Text>
+
+        {mensajeBackup && (
+          <View style={[styles.mensajeBackup, { backgroundColor: mensajeBackup.ok ? colors.secondary : "#fef2f2", borderColor: mensajeBackup.ok ? colors.primary : colors.destructive }]}>
+            <Feather name={mensajeBackup.ok ? "check-circle" : "alert-circle"} size={16} color={mensajeBackup.ok ? colors.primary : colors.destructive} />
+            <Text style={[styles.mensajeBackupTxt, { color: mensajeBackup.ok ? colors.primary : colors.destructive }]}>{mensajeBackup.texto}</Text>
+          </View>
+        )}
+
+        <View style={styles.backupCard}>
+          <View style={styles.backupFila}>
+            <View style={[styles.backupIconWrap, { backgroundColor: colors.secondary }]}>
+              <Feather name="download" size={20} color={colors.primary} />
+            </View>
+            <View style={styles.backupTexto}>
+              <Text style={styles.backupTitulo}>Exportar backup</Text>
+              <Text style={styles.backupSub}>Descarga un archivo .json con todos los datos</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.backupBtn, { backgroundColor: colors.primary }]}
+              onPress={hacerExportBackup}
+              disabled={backupExportando}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.backupBtnTxt}>{backupExportando ? "…" : "Exportar"}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={[styles.backupDivisor, { backgroundColor: colors.border }]} />
+
+          <View style={styles.backupFila}>
+            <View style={[styles.backupIconWrap, { backgroundColor: "#fff7ed" }]}>
+              <Feather name="upload" size={20} color="#ea580c" />
+            </View>
+            <View style={styles.backupTexto}>
+              <Text style={styles.backupTitulo}>Restaurar backup</Text>
+              <Text style={styles.backupSub}>Carga un archivo .json y reemplaza los datos</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.backupBtn, { backgroundColor: "#ea580c" }]}
+              onPress={seleccionarBackup}
+              disabled={backupImportando}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.backupBtnTxt}>{backupImportando ? "…" : "Cargar"}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
 
       {/* FAB Compartir */}
@@ -192,6 +293,29 @@ export default function ResumenScreen() {
       >
         <Feather name={exportando ? "loader" : "share-2"} size={24} color="#fff" />
       </TouchableOpacity>
+
+      {/* ── Modal Confirmar Restaurar ── */}
+      <Modal visible={modalConfirmRestore} transparent animationType="fade" onRequestClose={() => setModalConfirmRestore(false)}>
+        <Pressable style={styles.overlayCenter} onPress={() => { setModalConfirmRestore(false); setBackupPendiente(null); }}>
+          <Pressable style={styles.confirmCard} onPress={() => {}}>
+            <View style={styles.confirmIcono}>
+              <Feather name="alert-triangle" size={28} color="#ea580c" />
+            </View>
+            <Text style={styles.confirmTitulo}>Restaurar backup</Text>
+            <Text style={styles.confirmMensaje}>
+              {`Esto reemplazará TODOS los datos actuales (almacenes, artículos, pedidos, stock) con los del archivo seleccionado.\n\nExportado el: ${backupPendiente ? new Date(backupPendiente.exportadoEn).toLocaleString("es-ES") : ""}`}
+            </Text>
+            <View style={styles.confirmBotones}>
+              <TouchableOpacity style={styles.btnCancelar} onPress={() => { setModalConfirmRestore(false); setBackupPendiente(null); }}>
+                <Text style={styles.btnCancelarTxt}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.btnRestaurar} onPress={confirmarRestaurar}>
+                <Text style={styles.btnRestaurarTxt}>Restaurar</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* ── Modal unidades por artículo ── */}
       <Modal
@@ -345,5 +469,28 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     exportTexto: { fontSize: 13, color: colors.foreground, fontFamily: "Inter_400Regular", lineHeight: 20 },
     copiarBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#16a34a", borderRadius: 10, paddingVertical: 13 },
     copiarBtnTxt: { fontSize: 15, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold" },
+    // Backup
+    backupCard: { backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
+    backupFila: { flexDirection: "row", alignItems: "center", padding: 14, gap: 12 },
+    backupIconWrap: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+    backupTexto: { flex: 1 },
+    backupTitulo: { fontSize: 14, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
+    backupSub: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular", marginTop: 2 },
+    backupBtn: { borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
+    backupBtnTxt: { fontSize: 13, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold" },
+    backupDivisor: { height: 1, marginHorizontal: 14 },
+    mensajeBackup: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 10, borderWidth: 1, padding: 12 },
+    mensajeBackupTxt: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
+    // Modal confirmar restaurar
+    overlayCenter: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center", padding: 24 },
+    confirmCard: { backgroundColor: colors.card, borderRadius: 18, padding: 24, width: "100%", maxWidth: 380, gap: 14, alignItems: "center", borderWidth: 1, borderColor: colors.border },
+    confirmIcono: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#fff7ed", alignItems: "center", justifyContent: "center" },
+    confirmTitulo: { fontSize: 18, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold", textAlign: "center" },
+    confirmMensaje: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+    confirmBotones: { flexDirection: "row", gap: 10, width: "100%", marginTop: 4 },
+    btnCancelar: { flex: 1, backgroundColor: colors.muted, borderRadius: 10, paddingVertical: 13, alignItems: "center" },
+    btnCancelarTxt: { fontSize: 15, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
+    btnRestaurar: { flex: 1, backgroundColor: "#ea580c", borderRadius: 10, paddingVertical: 13, alignItems: "center" },
+    btnRestaurarTxt: { fontSize: 15, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold" },
   });
 }
