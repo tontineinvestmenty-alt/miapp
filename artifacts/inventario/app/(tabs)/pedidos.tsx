@@ -83,6 +83,9 @@ export default function PedidosScreen() {
     setConfirm({ destructivo: false, ...opts });
   }
 
+  // búsqueda
+  const [busqueda, setBusqueda] = useState("");
+
   // form
   const [numCompra, setNumCompra] = useState("");
   const [numSeguimiento, setNumSeguimiento] = useState("");
@@ -283,6 +286,15 @@ export default function PedidosScreen() {
   const sig = pedidoActivo ? estadoSiguiente(pedidoActivo.estado) : null;
   const sigInfo = sig ? estadoInfo(sig) : null;
 
+  // filtrado por búsqueda
+  const q = busqueda.trim().toLowerCase();
+  const pedidosFiltrados = q
+    ? pedidos.filter(p =>
+        p.numeroCompra.toLowerCase().includes(q) ||
+        p.numeroSeguimiento?.toLowerCase().includes(q)
+      )
+    : pedidos;
+
   // artículos no añadidos aún al pedido actual
   const articulosDisponibles = todosArticulos.filter(
     a => !articulosPedido.some(p => p.articuloId === a.id)
@@ -290,15 +302,40 @@ export default function PedidosScreen() {
 
   return (
     <View style={s.container}>
+      {/* ── Barra de búsqueda ── */}
+      <View style={s.searchBar}>
+        <Feather name="search" size={16} color={colors.mutedForeground} style={s.searchIco} />
+        <TextInput
+          style={s.searchInput}
+          placeholder="Buscar por n° compra o seguimiento…"
+          placeholderTextColor={colors.mutedForeground}
+          value={busqueda}
+          onChangeText={setBusqueda}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          autoCorrect={false}
+          autoCapitalize="none"
+        />
+        {busqueda.length > 0 && (
+          <TouchableOpacity onPress={() => setBusqueda("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Feather name="x-circle" size={16} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        )}
+      </View>
+
       <FlatList
-        data={pedidos}
+        data={pedidosFiltrados}
         keyExtractor={p => p.id}
-        contentContainerStyle={[s.lista, pedidos.length === 0 && { flex: 1 }]}
+        contentContainerStyle={[s.lista, pedidosFiltrados.length === 0 && { flex: 1 }]}
         ListEmptyComponent={
           <View style={s.vacio}>
-            <Feather name="package" size={52} color={colors.mutedForeground} />
-            <Text style={s.vacioTitulo}>Sin pedidos</Text>
-            <Text style={s.vacioTexto}>Toca + para registrar un pedido en camino</Text>
+            <Feather name={q ? "search" : "package"} size={52} color={colors.mutedForeground} />
+            <Text style={s.vacioTitulo}>{q ? "Sin resultados" : "Sin pedidos"}</Text>
+            <Text style={s.vacioTexto}>
+              {q
+                ? `No hay pedidos con "${busqueda}"`
+                : "Toca + para registrar un pedido en camino"}
+            </Text>
           </View>
         }
         renderItem={({ item }) => {
@@ -647,6 +684,9 @@ export default function PedidosScreen() {
 function makeStyles(colors: ReturnType<typeof useColors>, fabBottom: number) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
+    searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border, paddingHorizontal: 14, paddingVertical: 8, gap: 8 },
+    searchIco: {},
+    searchInput: { flex: 1, fontSize: 14, color: colors.foreground, fontFamily: "Inter_400Regular", paddingVertical: 6 },
     lista: { padding: 16, paddingBottom: TAB_BAR_HEIGHT + 80 },
     vacio: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 10 },
     vacioTitulo: { fontSize: 20, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
