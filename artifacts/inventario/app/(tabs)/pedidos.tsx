@@ -71,6 +71,7 @@ export default function PedidosScreen() {
     confirmLabel: string;
     destructivo: boolean;
     onConfirm: () => void;
+    onCancel?: () => void;
   } | null>(null);
 
   function pedirConfirmacion(opts: {
@@ -79,6 +80,7 @@ export default function PedidosScreen() {
     confirmLabel: string;
     destructivo?: boolean;
     onConfirm: () => void;
+    onCancel?: () => void;
   }) {
     setConfirm({ destructivo: false, ...opts });
   }
@@ -169,19 +171,19 @@ export default function PedidosScreen() {
         ? `\nSe sumarán ${totalUds} unidades al stock del almacén elegido.`
         : "";
 
+    setModalDetalle(false);
     pedirConfirmacion({
       titulo: `Avanzar a "${sigI.label}"`,
       mensaje: `¿Confirmas que el pedido #${p.numeroCompra} pasó a "${sigI.label}"?${mensajeStock}`,
       confirmLabel: "Confirmar",
+      onCancel: () => setModalDetalle(true),
       onConfirm: async () => {
         if (sig === "en_almacen") {
           setPedidoActivo(p);
-          setModalDetalle(false);
           setModalAlmacen(true);
           return;
         }
         await actualizarEstado(p.id, sig);
-        setModalDetalle(false);
         if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       },
     });
@@ -198,11 +200,13 @@ export default function PedidosScreen() {
       ? `\n\n⚠️ Se revertirán ${totalUds} unidades del stock en "${p.almacenNombre}".`
       : "";
 
+    setModalDetalle(false);
     pedirConfirmacion({
       titulo: `Retroceder a "${prevI.label}"`,
       mensaje: `¿Deshacer el avance del pedido #${p.numeroCompra}? Volverá a "${prevI.label}".${avisoStock}`,
       confirmLabel: "Retroceder",
       destructivo: true,
+      onCancel: () => setModalDetalle(true),
       onConfirm: async () => {
         if (tieneStock && p.almacenId) {
           for (const pa of p.articulos) {
@@ -224,7 +228,6 @@ export default function PedidosScreen() {
         setPedidos(lista);
         await savePedidos(lista);
         setPedidoActivo(lista.find(x => x.id === p.id) ?? null);
-        setModalDetalle(false);
         if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       },
     });
@@ -264,16 +267,17 @@ export default function PedidosScreen() {
   }
 
   function confirmarEliminar(id: string) {
+    setModalDetalle(false);
     pedirConfirmacion({
       titulo: "Eliminar pedido",
       mensaje: "¿Seguro que quieres eliminar este pedido?",
       confirmLabel: "Eliminar",
       destructivo: true,
+      onCancel: () => setModalDetalle(true),
       onConfirm: async () => {
         const lista = pedidos.filter(p => p.id !== id);
         setPedidos(lista);
         await savePedidos(lista);
-        setModalDetalle(false);
       },
     });
   }
@@ -651,12 +655,16 @@ export default function PedidosScreen() {
 
       {/* ── Modal Confirmación ── */}
       <Modal visible={!!confirm} transparent animationType="fade" onRequestClose={() => setConfirm(null)}>
-        <Pressable style={s.overlayCenter} onPress={() => setConfirm(null)}>
+        <Pressable style={s.overlayCenter} onPress={() => { const fn = confirm?.onCancel; setConfirm(null); fn?.(); }}>
           <Pressable style={s.modalCenter} onPress={() => {}}>
             <Text style={s.sheetTitulo}>{confirm?.titulo}</Text>
             <Text style={s.confirmMensaje}>{confirm?.mensaje}</Text>
             <View style={s.modalBotones}>
-              <TouchableOpacity style={[s.boton, s.botonCancelar]} onPress={() => setConfirm(null)}>
+              <TouchableOpacity style={[s.boton, s.botonCancelar]} onPress={() => {
+                const fn = confirm?.onCancel;
+                setConfirm(null);
+                fn?.();
+              }}>
                 <Text style={s.botonCancelarTxt}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity

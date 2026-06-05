@@ -8,6 +8,7 @@ import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
+import { ThemePickerButton } from "@/components/ThemePicker";
 
 function NativeTabLayout() {
   return (
@@ -48,6 +49,7 @@ function ClassicTabLayout() {
         headerStyle: { backgroundColor: colors.card },
         headerTitleStyle: { color: colors.foreground, fontFamily: "Inter_700Bold", fontSize: 18 },
         headerShadowVisible: false,
+        headerRight: () => <ThemePickerButton />,
         tabBarStyle: {
           position: "absolute",
           backgroundColor: isIOS ? "transparent" : colors.background,
