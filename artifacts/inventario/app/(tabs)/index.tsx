@@ -1,5 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -26,6 +28,7 @@ export default function AlmacenesScreen() {
   const [almacenes, setAlmacenes] = useState<Almacen[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState("");
+  const [nuevaFoto, setNuevaFoto] = useState<string | undefined>(undefined);
 
   const cargar = useCallback(async () => {
     setAlmacenes(await getAlmacenes());
@@ -35,21 +38,49 @@ export default function AlmacenesScreen() {
     cargar();
   }, [cargar]);
 
+  async function elegirFoto(): Promise<string | undefined> {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return undefined;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const a = result.assets[0];
+      return a.base64 ? `data:image/jpeg;base64,${a.base64}` : a.uri;
+    }
+    return undefined;
+  }
+
   function abrirModal() {
     setNuevoNombre("");
+    setNuevaFoto(undefined);
     setModalVisible(true);
   }
 
   async function crearAlmacen() {
     const nombre = nuevoNombre.trim();
     if (!nombre) return;
-    const nuevo: Almacen = { id: genId(), nombre, creadoEn: fechaHoy() };
+    const nuevo: Almacen = { id: genId(), nombre, foto: nuevaFoto, creadoEn: fechaHoy() };
     const lista = [nuevo, ...almacenes];
     setAlmacenes(lista);
     await saveAlmacenes(lista);
     setModalVisible(false);
     setNuevoNombre("");
+    setNuevaFoto(undefined);
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
+
+  async function cambiarFoto(id: string) {
+    const foto = await elegirFoto();
+    if (!foto) return;
+    const lista = almacenes.map(a => a.id === id ? { ...a, foto } : a);
+    setAlmacenes(lista);
+    await saveAlmacenes(lista);
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }
 
   function confirmarEliminar(id: string, nombre: string) {
@@ -87,9 +118,15 @@ export default function AlmacenesScreen() {
             activeOpacity={0.75}
             onPress={() => router.push(`/almacen/${item.id}`)}
           >
-            <View style={styles.iconoAlmacen}>
-              <Feather name="package" size={22} color={colors.primary} />
-            </View>
+            <TouchableOpacity onPress={() => cambiarFoto(item.id)} activeOpacity={0.8}>
+              {item.foto ? (
+                <Image source={{ uri: item.foto }} style={styles.fotoAlmacen} contentFit="cover" />
+              ) : (
+                <View style={styles.iconoAlmacen}>
+                  <Feather name="camera" size={20} color={colors.mutedForeground} />
+                </View>
+              )}
+            </TouchableOpacity>
             <View style={styles.tarjetaInfo}>
               <Text style={styles.tarjetaNombre}>{item.nombre}</Text>
               <Text style={styles.tarjetaFecha}>Creado: {item.creadoEn}</Text>
@@ -115,6 +152,22 @@ export default function AlmacenesScreen() {
         <Pressable style={styles.overlay} onPress={() => setModalVisible(false)}>
           <Pressable style={styles.modal} onPress={() => {}}>
             <Text style={styles.modalTitulo}>Nuevo almacén</Text>
+
+            {/* Foto */}
+            <TouchableOpacity style={styles.fotoPickerBtn} onPress={async () => {
+              const f = await elegirFoto();
+              if (f) setNuevaFoto(f);
+            }} activeOpacity={0.8}>
+              {nuevaFoto ? (
+                <Image source={{ uri: nuevaFoto }} style={styles.fotoPreview} contentFit="cover" />
+              ) : (
+                <View style={styles.fotoPlaceholder}>
+                  <Feather name="camera" size={26} color={colors.mutedForeground} />
+                  <Text style={styles.fotoPlaceholderTxt}>Añadir foto</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
             <TextInput
               style={styles.input}
               placeholder="Nombre del almacén"
@@ -152,16 +205,21 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     vacio: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 10 },
     vacioTitulo: { fontSize: 20, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
     vacioTexto: { fontSize: 14, color: colors.mutedForeground, textAlign: "center", paddingHorizontal: 32, fontFamily: "Inter_400Regular" },
-    tarjeta: { backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 10, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: colors.border, gap: 12 },
-    iconoAlmacen: { width: 44, height: 44, borderRadius: 10, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+    tarjeta: { backgroundColor: colors.card, borderRadius: 12, padding: 14, marginBottom: 10, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: colors.border, gap: 12 },
+    fotoAlmacen: { width: 46, height: 46, borderRadius: 10 },
+    iconoAlmacen: { width: 46, height: 46, borderRadius: 10, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
     tarjetaInfo: { flex: 1 },
     tarjetaNombre: { fontSize: 16, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
     tarjetaFecha: { fontSize: 12, color: colors.mutedForeground, marginTop: 2, fontFamily: "Inter_400Regular" },
     tarjetaDerecha: { flexDirection: "row", alignItems: "center", gap: 10 },
     fab: { position: "absolute", right: 20, bottom: Platform.OS === "web" ? 100 : 24, width: 58, height: 58, borderRadius: 29, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 },
     overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center", padding: 24 },
-    modal: { backgroundColor: colors.card, borderRadius: 16, padding: 24, width: "100%", maxWidth: 380, gap: 16 },
+    modal: { backgroundColor: colors.card, borderRadius: 16, padding: 24, width: "100%", maxWidth: 380, gap: 14 },
     modalTitulo: { fontSize: 18, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold" },
+    fotoPickerBtn: { alignSelf: "center" },
+    fotoPreview: { width: 90, height: 90, borderRadius: 14 },
+    fotoPlaceholder: { width: 90, height: 90, borderRadius: 14, backgroundColor: colors.muted, borderWidth: 1.5, borderColor: colors.border, borderStyle: "dashed", alignItems: "center", justifyContent: "center", gap: 6 },
+    fotoPlaceholderTxt: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: colors.foreground, backgroundColor: colors.background, fontFamily: "Inter_400Regular" },
     modalBotones: { flexDirection: "row", gap: 10 },
     boton: { flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: "center" },

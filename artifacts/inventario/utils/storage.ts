@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export interface Almacen {
   id: string;
   nombre: string;
+  foto?: string;
   creadoEn: string;
 }
 
@@ -193,4 +194,87 @@ export async function agregarMovimiento(mov: Omit<Movimiento, "id" | "fecha" | "
   };
   all.unshift(nuevo);
   await set(KEYS.historial, all);
+}
+
+// ─── Exportar ─────────────────────────────────────────────────────────────────
+
+const ESTADO_LABEL: Record<string, string> = {
+  comprado: "Comprado",
+  en_casillero: "En casillero",
+  enviado_cuba: "Enviado a Cuba",
+  en_almacen: "En almacén",
+};
+
+export async function exportarTexto(): Promise<string> {
+  const [almacenes, articulos, stock, pedidos] = await Promise.all([
+    getAlmacenes(), getArticulos(), getStock(), getPedidos(),
+  ]);
+
+  const stockPorArticulo: Record<string, number> = {};
+  for (const [k, cant] of Object.entries(stock)) {
+    const artId = k.split("::")[1];
+    stockPorArticulo[artId] = (stockPorArticulo[artId] ?? 0) + cant;
+  }
+
+  const totalValor = articulos.reduce((s, a) => {
+    return s + (stockPorArticulo[a.id] ?? 0) * (a.precio ?? 0);
+  }, 0);
+
+  const sep = "─".repeat(30);
+  const L: string[] = [];
+
+  L.push(`📦 INVENTARIO · ${fechaHoy()}`);
+  L.push(sep);
+  L.push("");
+
+  L.push(`🏪 ALMACENES (${almacenes.length})`);
+  if (almacenes.length === 0) {
+    L.push("  (sin almacenes)");
+  } else {
+    for (const a of almacenes) L.push(`  · ${a.nombre}`);
+  }
+  L.push("");
+
+  L.push(`📦 ARTÍCULOS (${articulos.length})`);
+  if (articulos.length === 0) {
+    L.push("  (sin artículos)");
+  } else {
+    for (const a of articulos) {
+      const uds = stockPorArticulo[a.id] ?? 0;
+      const p = a.precio != null ? `$${a.precio.toFixed(2)}/u` : "sin precio";
+      const v = a.precio != null ? ` = $${(uds * a.precio).toFixed(2)}` : "";
+      L.push(`  · ${a.nombre}: ${uds} uds · ${p}${v}`);
+    }
+  }
+  L.push("");
+
+  L.push(`💰 VALOR TOTAL: $${totalValor.toFixed(2)}`);
+  L.push("");
+
+  const activos = pedidos.filter(p => p.estado !== "en_almacen");
+  const enAlmacen = pedidos.filter(p => p.estado === "en_almacen");
+
+  L.push(`🚚 PEDIDOS EN CURSO (${activos.length})`);
+  if (activos.length === 0) {
+    L.push("  (sin pedidos activos)");
+  } else {
+    for (const p of activos) {
+      const arts = p.articulos?.length ? ` · ${p.articulos.length} art.` : "";
+      L.push(`  · #${p.numeroCompra} → ${ESTADO_LABEL[p.estado] ?? p.estado}${arts}`);
+    }
+  }
+  L.push("");
+
+  if (enAlmacen.length > 0) {
+    L.push(`✅ RECIBIDOS EN ALMACÉN (${enAlmacen.length})`);
+    for (const p of enAlmacen) {
+      const dest = p.almacenNombre ? ` → ${p.almacenNombre}` : "";
+      L.push(`  · #${p.numeroCompra}${dest}`);
+    }
+    L.push("");
+  }
+
+  L.push("_Exportado desde Inventario_");
+
+  return L.join("\n");
 }

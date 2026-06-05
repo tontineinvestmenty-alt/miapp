@@ -144,6 +144,9 @@ export default function AlmacenDetalle() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={colors.primary} />
         </TouchableOpacity>
+        {almacen?.foto ? (
+          <Image source={{ uri: almacen.foto }} style={styles.headerFoto} contentFit="cover" />
+        ) : null}
         <Text style={styles.headerTitulo} numberOfLines={1}>
           {almacen?.nombre ?? "Almacén"}
         </Text>
@@ -360,6 +363,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, insets: ReturnType<typ
     container: { flex: 1, backgroundColor: colors.background },
     header: { flexDirection: "row", alignItems: "center", paddingTop: insets.top + 8, paddingBottom: 12, paddingHorizontal: 16, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 10 },
     backBtn: { padding: 4 },
+    headerFoto: { width: 32, height: 32, borderRadius: 8 },
     headerTitulo: { flex: 1, fontSize: 18, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold" },
     tabs: { flexDirection: "row", backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
     tab: { flex: 1, paddingVertical: 12, alignItems: "center" },

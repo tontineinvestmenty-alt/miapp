@@ -8,6 +8,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -17,6 +18,7 @@ import {
 import { useColors } from "@/hooks/useColors";
 import {
   Articulo,
+  exportarTexto,
   getAlmacenes,
   getArticulos,
   getStock,
@@ -41,6 +43,9 @@ export default function ResumenScreen() {
   const [totalValor, setTotalValor] = useState(0);
   const [numAlmacenes, setNumAlmacenes] = useState(0);
   const [modalUnidades, setModalUnidades] = useState(false);
+  const [exportando, setExportando] = useState(false);
+  const [modalExport, setModalExport] = useState(false);
+  const [textoExport, setTextoExport] = useState("");
 
   useFocusEffect(
     useCallback(() => {
@@ -77,26 +82,44 @@ export default function ResumenScreen() {
     setTotalValor(tv);
   }
 
-  // sorted by units for the modal
-  const filasPorUnidades = [...filas].sort((a, b) => b.totalUnidades - a.totalUnidades);
+  async function compartir() {
+    setExportando(true);
+    try {
+      const texto = await exportarTexto();
+      if (Platform.OS === "web") {
+        setTextoExport(texto);
+        setModalExport(true);
+      } else {
+        await Share.share({ message: texto, title: "Inventario" });
+      }
+    } finally {
+      setExportando(false);
+    }
+  }
 
+  async function copiarAlPortapapeles() {
+    try {
+      await navigator.clipboard.writeText(textoExport);
+    } catch {}
+    setModalExport(false);
+  }
+
+  const filasPorUnidades = [...filas].sort((a, b) => b.totalUnidades - a.totalUnidades);
   const styles = makeStyles(colors);
 
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: TAB_BAR_HEIGHT + 24 }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: TAB_BAR_HEIGHT + 80 }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.statsRow}>
-          {/* Almacenes — static */}
           <View style={[styles.statCard, { flex: 1 }]}>
             <Feather name="archive" size={20} color={colors.primary} />
             <Text style={styles.statNum}>{numAlmacenes}</Text>
             <Text style={styles.statLabel}>Almacenes</Text>
           </View>
 
-          {/* Unidades — tappable */}
           <TouchableOpacity
             style={[styles.statCard, styles.statCardTap, { flex: 1 }]}
             onPress={() => setModalUnidades(true)}
@@ -160,6 +183,16 @@ export default function ResumenScreen() {
         )}
       </ScrollView>
 
+      {/* FAB Compartir */}
+      <TouchableOpacity
+        style={styles.fabCompartir}
+        onPress={compartir}
+        activeOpacity={0.85}
+        disabled={exportando}
+      >
+        <Feather name={exportando ? "loader" : "share-2"} size={24} color="#fff" />
+      </TouchableOpacity>
+
       {/* ── Modal unidades por artículo ── */}
       <Modal
         visible={modalUnidades}
@@ -170,7 +203,6 @@ export default function ResumenScreen() {
         <Pressable style={styles.overlay} onPress={() => setModalUnidades(false)}>
           <Pressable style={styles.sheet} onPress={() => {}}>
             <View style={styles.sheetHandle} />
-
             <View style={styles.sheetHeader}>
               <View>
                 <Text style={styles.sheetTitulo}>Unidades por artículo</Text>
@@ -225,6 +257,32 @@ export default function ResumenScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* ── Modal Exportar (web) ── */}
+      <Modal
+        visible={modalExport}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalExport(false)}
+      >
+        <Pressable style={styles.overlay} onPress={() => setModalExport(false)}>
+          <Pressable style={styles.exportModal} onPress={() => {}}>
+            <View style={styles.exportHeader}>
+              <Text style={styles.sheetTitulo}>Exportar inventario</Text>
+              <TouchableOpacity onPress={() => setModalExport(false)} style={styles.cerrarBtn}>
+                <Feather name="x" size={20} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.exportScroll} showsVerticalScrollIndicator={false}>
+              <Text style={styles.exportTexto}>{textoExport}</Text>
+            </ScrollView>
+            <TouchableOpacity style={styles.copiarBtn} onPress={copiarAlPortapapeles}>
+              <Feather name="copy" size={16} color="#fff" />
+              <Text style={styles.copiarBtnTxt}>Copiar al portapapeles</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -234,19 +292,8 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     container: { flex: 1, backgroundColor: colors.background },
     scroll: { padding: 16, gap: 12 },
     statsRow: { flexDirection: "row", gap: 10 },
-    statCard: {
-      backgroundColor: colors.card,
-      borderRadius: 14,
-      padding: 16,
-      alignItems: "center",
-      gap: 4,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    statCardTap: {
-      borderColor: colors.primary,
-      borderWidth: 1.5,
-    },
+    statCard: { backgroundColor: colors.card, borderRadius: 14, padding: 16, alignItems: "center", gap: 4, borderWidth: 1, borderColor: colors.border },
+    statCardTap: { borderColor: colors.primary, borderWidth: 1.5 },
     statNum: { fontSize: 26, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold" },
     statLabel: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: "center" },
     statTapHint: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 },
@@ -268,7 +315,8 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     filaDetalle: { fontSize: 11, color: colors.mutedForeground, marginTop: 2, fontFamily: "Inter_400Regular" },
     filaValor: { alignItems: "flex-end" },
     filaValorNum: { fontSize: 15, fontWeight: "700", color: colors.primary, fontFamily: "Inter_700Bold" },
-    // Modal
+    fabCompartir: { position: "absolute", right: 20, bottom: TAB_BAR_HEIGHT + 16, width: 54, height: 54, borderRadius: 27, backgroundColor: "#16a34a", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 },
+    // Modal unidades
     overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
     sheet: { backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingBottom: 40, maxHeight: "85%" },
     sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: "center", marginBottom: 16 },
@@ -290,5 +338,12 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     barraFondo: { height: 5, backgroundColor: colors.muted, borderRadius: 3, overflow: "hidden" },
     barraRelleno: { height: 5, borderRadius: 3 },
     modalPct: { fontSize: 10, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    // Modal exportar
+    exportModal: { backgroundColor: colors.card, borderRadius: 18, padding: 20, width: "100%", maxWidth: 460, maxHeight: "80%", gap: 14, alignSelf: "center", marginHorizontal: 20 },
+    exportHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    exportScroll: { maxHeight: 340, backgroundColor: colors.muted, borderRadius: 10, padding: 14 },
+    exportTexto: { fontSize: 13, color: colors.foreground, fontFamily: "Inter_400Regular", lineHeight: 20 },
+    copiarBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#16a34a", borderRadius: 10, paddingVertical: 13 },
+    copiarBtnTxt: { fontSize: 15, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold" },
   });
 }
