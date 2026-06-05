@@ -188,18 +188,17 @@ export default function PedidosScreen() {
         {
           text: "Retroceder", style: "destructive", onPress: async () => {
             if (tieneStock && p.almacenId) {
-              await Promise.all(
-                p.articulos.map(async (pa) => {
-                  await updateStock(p.almacenId!, pa.articuloId, -pa.cantidad);
-                  await agregarMovimiento({
-                    almacenId: p.almacenId!,
-                    articuloId: pa.articuloId,
-                    articuloNombre: pa.articuloNombre,
-                    tipo: "salida",
-                    cantidad: pa.cantidad,
-                  });
-                })
-              );
+              // secuencial para evitar race condition en el mapa de stock
+              for (const pa of p.articulos) {
+                await updateStock(p.almacenId!, pa.articuloId, -pa.cantidad);
+                await agregarMovimiento({
+                  almacenId: p.almacenId!,
+                  articuloId: pa.articuloId,
+                  articuloNombre: pa.articuloNombre,
+                  tipo: "salida",
+                  cantidad: pa.cantidad,
+                });
+              }
             }
             const lista = pedidos.map(x =>
               x.id === p.id
@@ -218,9 +217,13 @@ export default function PedidosScreen() {
   }
 
   async function actualizarEstado(id: string, estado: EstadoPedido, almacen?: Almacen) {
-    const lista = pedidos.map(p =>
-      p.id === id ? { ...p, estado, almacenId: almacen?.id, almacenNombre: almacen?.nombre } : p
-    );
+    const lista = pedidos.map(p => {
+      if (p.id !== id) return p;
+      const extra = almacen
+        ? { almacenId: almacen.id, almacenNombre: almacen.nombre }
+        : {};          // no sobreescribir si no se pasa almacén
+      return { ...p, estado, ...extra };
+    });
     setPedidos(lista);
     await savePedidos(lista);
   }
@@ -228,19 +231,17 @@ export default function PedidosScreen() {
   async function enviarAlmacen(almacen: Almacen) {
     if (!pedidoActivo) return;
 
-    // suma stock de cada artículo del pedido en el almacén elegido
-    await Promise.all(
-      pedidoActivo.articulos.map(async (pa) => {
-        await updateStock(almacen.id, pa.articuloId, pa.cantidad);
-        await agregarMovimiento({
-          almacenId: almacen.id,
-          articuloId: pa.articuloId,
-          articuloNombre: pa.articuloNombre,
-          tipo: "entrada",
-          cantidad: pa.cantidad,
-        });
-      })
-    );
+    // secuencial para evitar race condition al leer/escribir el mismo mapa de stock
+    for (const pa of pedidoActivo.articulos) {
+      await updateStock(almacen.id, pa.articuloId, pa.cantidad);
+      await agregarMovimiento({
+        almacenId: almacen.id,
+        articuloId: pa.articuloId,
+        articuloNombre: pa.articuloNombre,
+        tipo: "entrada",
+        cantidad: pa.cantidad,
+      });
+    }
 
     await actualizarEstado(pedidoActivo.id, "en_almacen", almacen);
     setModalAlmacen(false);

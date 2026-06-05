@@ -9,8 +9,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
-  SectionList,
   StyleSheet,
   Text,
   TextInput,
@@ -79,10 +77,10 @@ export default function AlmacenDetalle() {
 
   function abrirAgregarArticulo() {
     if (articulosDisponibles.length === 0) {
-      Alert.alert(
-        "Sin artículos",
-        "Primero crea artículos en la pestaña Artículos."
-      );
+      const msg = articulos.length === 0
+        ? "Crea artículos en la pestaña Artículos primero."
+        : "Todos tus artículos ya están en este almacén.";
+      Alert.alert("Sin artículos disponibles", msg);
       return;
     }
     setModalAgregar(true);
