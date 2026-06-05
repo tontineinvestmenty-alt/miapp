@@ -64,6 +64,25 @@ export default function PedidosScreen() {
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [pedidoActivo, setPedidoActivo] = useState<Pedido | null>(null);
 
+  // confirmación universal (reemplaza Alert.alert — funciona en web y nativo)
+  const [confirm, setConfirm] = useState<{
+    titulo: string;
+    mensaje: string;
+    confirmLabel: string;
+    destructivo: boolean;
+    onConfirm: () => void;
+  } | null>(null);
+
+  function pedirConfirmacion(opts: {
+    titulo: string;
+    mensaje: string;
+    confirmLabel: string;
+    destructivo?: boolean;
+    onConfirm: () => void;
+  }) {
+    setConfirm({ destructivo: false, ...opts });
+  }
+
   // form
   const [numCompra, setNumCompra] = useState("");
   const [numSeguimiento, setNumSeguimiento] = useState("");
@@ -144,29 +163,25 @@ export default function PedidosScreen() {
     const totalUds = p.articulos?.reduce((s, a) => s + a.cantidad, 0) ?? 0;
     const mensajeStock =
       sig === "en_almacen" && totalUds > 0
-        ? `\n\nSe sumarán ${totalUds} unidades al stock del almacén elegido.`
+        ? `\nSe sumarán ${totalUds} unidades al stock del almacén elegido.`
         : "";
 
-    Alert.alert(
-      `Avanzar a "${sigI.label}"`,
-      `¿Confirmas que el pedido #${p.numeroCompra} pasó a "${sigI.label}"?${mensajeStock}`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Confirmar", onPress: async () => {
-            if (sig === "en_almacen") {
-              setPedidoActivo(p);
-              setModalDetalle(false);
-              setModalAlmacen(true);
-              return;
-            }
-            await actualizarEstado(p.id, sig);
-            setModalDetalle(false);
-            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          },
-        },
-      ]
-    );
+    pedirConfirmacion({
+      titulo: `Avanzar a "${sigI.label}"`,
+      mensaje: `¿Confirmas que el pedido #${p.numeroCompra} pasó a "${sigI.label}"?${mensajeStock}`,
+      confirmLabel: "Confirmar",
+      onConfirm: async () => {
+        if (sig === "en_almacen") {
+          setPedidoActivo(p);
+          setModalDetalle(false);
+          setModalAlmacen(true);
+          return;
+        }
+        await actualizarEstado(p.id, sig);
+        setModalDetalle(false);
+        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      },
+    });
   }
 
   async function retrocederEstado(p: Pedido) {
@@ -180,40 +195,36 @@ export default function PedidosScreen() {
       ? `\n\n⚠️ Se revertirán ${totalUds} unidades del stock en "${p.almacenNombre}".`
       : "";
 
-    Alert.alert(
-      `Retroceder a "${prevI.label}"`,
-      `¿Deshacer el avance del pedido #${p.numeroCompra}? Volverá a "${prevI.label}".${avisoStock}`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Retroceder", style: "destructive", onPress: async () => {
-            if (tieneStock && p.almacenId) {
-              // secuencial para evitar race condition en el mapa de stock
-              for (const pa of p.articulos) {
-                await updateStock(p.almacenId!, pa.articuloId, -pa.cantidad);
-                await agregarMovimiento({
-                  almacenId: p.almacenId!,
-                  articuloId: pa.articuloId,
-                  articuloNombre: pa.articuloNombre,
-                  tipo: "salida",
-                  cantidad: pa.cantidad,
-                });
-              }
-            }
-            const lista = pedidos.map(x =>
-              x.id === p.id
-                ? { ...x, estado: prev, almacenId: tieneStock ? undefined : x.almacenId, almacenNombre: tieneStock ? undefined : x.almacenNombre }
-                : x
-            );
-            setPedidos(lista);
-            await savePedidos(lista);
-            setPedidoActivo(lista.find(x => x.id === p.id) ?? null);
-            setModalDetalle(false);
-            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          },
-        },
-      ]
-    );
+    pedirConfirmacion({
+      titulo: `Retroceder a "${prevI.label}"`,
+      mensaje: `¿Deshacer el avance del pedido #${p.numeroCompra}? Volverá a "${prevI.label}".${avisoStock}`,
+      confirmLabel: "Retroceder",
+      destructivo: true,
+      onConfirm: async () => {
+        if (tieneStock && p.almacenId) {
+          for (const pa of p.articulos) {
+            await updateStock(p.almacenId!, pa.articuloId, -pa.cantidad);
+            await agregarMovimiento({
+              almacenId: p.almacenId!,
+              articuloId: pa.articuloId,
+              articuloNombre: pa.articuloNombre,
+              tipo: "salida",
+              cantidad: pa.cantidad,
+            });
+          }
+        }
+        const lista = pedidos.map(x =>
+          x.id === p.id
+            ? { ...x, estado: prev, almacenId: tieneStock ? undefined : x.almacenId, almacenNombre: tieneStock ? undefined : x.almacenNombre }
+            : x
+        );
+        setPedidos(lista);
+        await savePedidos(lista);
+        setPedidoActivo(lista.find(x => x.id === p.id) ?? null);
+        setModalDetalle(false);
+        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      },
+    });
   }
 
   async function actualizarEstado(id: string, estado: EstadoPedido, almacen?: Almacen) {
@@ -250,17 +261,18 @@ export default function PedidosScreen() {
   }
 
   function confirmarEliminar(id: string) {
-    Alert.alert("Eliminar pedido", "¿Seguro que quieres eliminar este pedido?", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Eliminar", style: "destructive", onPress: async () => {
-          const lista = pedidos.filter(p => p.id !== id);
-          setPedidos(lista);
-          await savePedidos(lista);
-          setModalDetalle(false);
-        },
+    pedirConfirmacion({
+      titulo: "Eliminar pedido",
+      mensaje: "¿Seguro que quieres eliminar este pedido?",
+      confirmLabel: "Eliminar",
+      destructivo: true,
+      onConfirm: async () => {
+        const lista = pedidos.filter(p => p.id !== id);
+        setPedidos(lista);
+        await savePedidos(lista);
+        setModalDetalle(false);
       },
-    ]);
+    });
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -600,6 +612,27 @@ export default function PedidosScreen() {
         </Pressable>
       </Modal>
 
+      {/* ── Modal Confirmación ── */}
+      <Modal visible={!!confirm} transparent animationType="fade" onRequestClose={() => setConfirm(null)}>
+        <Pressable style={s.overlayCenter} onPress={() => setConfirm(null)}>
+          <Pressable style={s.modalCenter} onPress={() => {}}>
+            <Text style={s.sheetTitulo}>{confirm?.titulo}</Text>
+            <Text style={s.confirmMensaje}>{confirm?.mensaje}</Text>
+            <View style={s.modalBotones}>
+              <TouchableOpacity style={[s.boton, s.botonCancelar]} onPress={() => setConfirm(null)}>
+                <Text style={s.botonCancelarTxt}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.boton, confirm?.destructivo ? s.botonDestructivo : s.botonCrear]}
+                onPress={() => { const fn = confirm?.onConfirm; setConfirm(null); fn?.(); }}
+              >
+                <Text style={s.botonCrearTxt}>{confirm?.confirmLabel}</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* ── Calendar ── */}
       <CalendarPicker
         visible={calendarVisible}
@@ -690,6 +723,8 @@ function makeStyles(colors: ReturnType<typeof useColors>, fabBottom: number) {
     botonCrear: { backgroundColor: colors.primary },
     botonCrearTxt: { fontSize: 14, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold" },
     botonDisabled: { opacity: 0.4 },
+    botonDestructivo: { backgroundColor: "#dc2626" },
+    confirmMensaje: { fontSize: 14, color: colors.mutedForeground, fontFamily: "Inter_400Regular", lineHeight: 20 },
     // almacén
     almacenResumen: { flexDirection: "row", alignItems: "flex-start", gap: 6, backgroundColor: colors.accent, padding: 10, borderRadius: 10 },
     almacenResumenTxt: { flex: 1, fontSize: 12, color: colors.primary, fontFamily: "Inter_400Regular" },
