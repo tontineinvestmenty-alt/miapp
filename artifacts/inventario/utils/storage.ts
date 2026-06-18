@@ -164,6 +164,28 @@ export async function setStockDirect(
   await set(KEYS.stock, all);
 }
 
+// Moves stock from one warehouse to another atomically (single read-modify-write).
+// Never moves more than what's actually available at confirm time, so stock is
+// always conserved. Returns the amount actually moved (0 if none was available).
+export async function transferirStock(
+  origenId: string,
+  destinoId: string,
+  articuloId: string,
+  cantidad: number
+): Promise<number> {
+  if (origenId === destinoId || cantidad <= 0) return 0;
+  const all = await getStock();
+  const origenKey = stockKey(origenId, articuloId);
+  const destinoKey = stockKey(destinoId, articuloId);
+  const disponible = all[origenKey] ?? 0;
+  const moved = Math.min(cantidad, disponible);
+  if (moved <= 0) return 0;
+  all[origenKey] = disponible - moved;
+  all[destinoKey] = (all[destinoKey] ?? 0) + moved;
+  await set(KEYS.stock, all);
+  return moved;
+}
+
 // ─── Pedidos ──────────────────────────────────────────────────────────────────
 
 export async function getPedidos(): Promise<Pedido[]> {

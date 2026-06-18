@@ -24,9 +24,11 @@ import {
   StockEntry,
   agregarMovimiento,
   getAlmacenById,
+  getAlmacenes,
   getArticulos,
   getHistorialAlmacen,
   getStockAlmacen,
+  transferirStock,
   updateStock,
 } from "@/utils/storage";
 
@@ -49,6 +51,11 @@ export default function AlmacenDetalle() {
   const [modalMovimiento, setModalMovimiento] = useState(false);
   const [tipoMov, setTipoMov] = useState<"entrada" | "salida">("entrada");
   const [cantidadTexto, setCantidadTexto] = useState("1");
+
+  const [modalTransferir, setModalTransferir] = useState(false);
+  const [destinos, setDestinos] = useState<Almacen[]>([]);
+  const [destinoId, setDestinoId] = useState<string | null>(null);
+  const [transferMax, setTransferMax] = useState(0);
 
   const cargar = useCallback(async () => {
     if (!id) return;
@@ -121,6 +128,58 @@ export default function AlmacenDetalle() {
     setArticuloSeleccionado(null);
     await cargar();
     Sounds.crear();
+  }
+
+  async function abrirTransferir(item: StockEntry) {
+    const a = articulos.find((x) => x.id === item.articuloId);
+    if (!a || !id) return;
+    const todos = await getAlmacenes();
+    const otros = todos.filter((x) => x.id !== id);
+    if (otros.length === 0) {
+      Alert.alert("Sin destino", "Crea otro almacén para poder transferir artículos.");
+      return;
+    }
+    setArticuloSeleccionado(a);
+    setTransferMax(item.cantidad);
+    setCantidadTexto(String(item.cantidad));
+    setDestinos(otros);
+    setDestinoId(otros.length === 1 ? otros[0].id : null);
+    setModalTransferir(true);
+  }
+
+  async function confirmarTransferir() {
+    if (!articuloSeleccionado || !id || !destinoId) return;
+    const cant = parseInt(cantidadTexto, 10);
+    if (!cant || cant <= 0) return;
+
+    const moved = await transferirStock(id, destinoId, articuloSeleccionado.id, cant);
+    if (moved <= 0) {
+      setModalTransferir(false);
+      await cargar();
+      Alert.alert("Sin stock", "Ya no hay unidades disponibles para transferir.");
+      return;
+    }
+
+    await agregarMovimiento({
+      almacenId: id,
+      articuloId: articuloSeleccionado.id,
+      articuloNombre: articuloSeleccionado.nombre,
+      tipo: "salida",
+      cantidad: moved,
+    });
+    await agregarMovimiento({
+      almacenId: destinoId,
+      articuloId: articuloSeleccionado.id,
+      articuloNombre: articuloSeleccionado.nombre,
+      tipo: "entrada",
+      cantidad: moved,
+    });
+
+    setModalTransferir(false);
+    setArticuloSeleccionado(null);
+    setDestinoId(null);
+    await cargar();
+    Sounds.avanzar();
   }
 
   function confirmarQuitarArticulo(artId: string) {
@@ -208,6 +267,12 @@ export default function AlmacenDetalle() {
                     onPress={() => abrirMovimiento(item, "entrada")}
                   >
                     <Feather name="plus" size={16} color={colors.primaryForeground} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.btnCant, styles.btnTransfer]}
+                    onPress={() => abrirTransferir(item)}
+                  >
+                    <Feather name="repeat" size={15} color={colors.primary} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => confirmarQuitarArticulo(item.articuloId)}
@@ -353,6 +418,83 @@ export default function AlmacenDetalle() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <Modal visible={modalTransferir} transparent animationType="fade" onRequestClose={() => setModalTransferir(false)}>
+        <Pressable style={styles.overlay} onPress={() => setModalTransferir(false)}>
+          <Pressable style={styles.modal} onPress={() => {}}>
+            <Text style={styles.modalTitulo}>Transferir — {articuloSeleccionado?.nombre}</Text>
+            <Text style={styles.transferDisp}>Disponible: {transferMax} unidades</Text>
+
+            <Text style={styles.transferLabel}>Mover a</Text>
+            <FlatList
+              data={destinos}
+              keyExtractor={(a) => a.id}
+              style={{ maxHeight: 200 }}
+              renderItem={({ item }) => {
+                const sel = destinoId === item.id;
+                return (
+                  <TouchableOpacity
+                    style={[styles.destOpcion, sel && styles.destOpcionSel]}
+                    onPress={() => setDestinoId(item.id)}
+                  >
+                    {item.foto ? (
+                      <Image source={{ uri: item.foto }} style={styles.artOpcionFoto} contentFit="cover" />
+                    ) : (
+                      <View style={styles.artOpcionIco}><Feather name="archive" size={16} color={colors.primary} /></View>
+                    )}
+                    <Text style={[styles.artOpcionTexto, sel && { fontWeight: "700", color: colors.primary }]}>{item.nombre}</Text>
+                    {sel && <Feather name="check-circle" size={16} color={colors.primary} />}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+
+            <Text style={styles.transferLabel}>Cantidad</Text>
+            <View style={styles.cantRow}>
+              <TouchableOpacity
+                style={styles.cantBtn}
+                onPress={() => {
+                  const v = Math.max(1, parseInt(cantidadTexto || "1", 10) - 1);
+                  setCantidadTexto(String(v));
+                }}
+              >
+                <Feather name="minus" size={20} color={colors.foreground} />
+              </TouchableOpacity>
+              <TextInput
+                style={styles.cantInput}
+                value={cantidadTexto}
+                onChangeText={(t) => setCantidadTexto(t.replace(/[^0-9]/g, ""))}
+                keyboardType="numeric"
+                textAlign="center"
+                selectTextOnFocus
+              />
+              <TouchableOpacity
+                style={styles.cantBtn}
+                onPress={() => {
+                  const v = Math.min(transferMax, parseInt(cantidadTexto || "0", 10) + 1);
+                  setCantidadTexto(String(v));
+                }}
+              >
+                <Feather name="plus" size={20} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBotones}>
+              <TouchableOpacity style={[styles.boton, styles.botonCancelar]} onPress={() => setModalTransferir(false)}>
+                <Text style={styles.botonCancelarTexto}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.boton, styles.botonEntrada,
+                  (!destinoId || !cantidadTexto || parseInt(cantidadTexto) <= 0) && styles.botonDeshabilitado]}
+                onPress={confirmarTransferir}
+                disabled={!destinoId || !cantidadTexto || parseInt(cantidadTexto) <= 0}
+              >
+                <Text style={styles.botonCrearTexto}>Transferir</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -384,6 +526,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, insets: ReturnType<typ
     btnCant: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
     btnMenos: { backgroundColor: "#fee2e2" },
     btnMas: { backgroundColor: colors.primary },
+    btnTransfer: { backgroundColor: colors.accent },
     movCard: { backgroundColor: colors.card, borderRadius: 12, padding: 14, marginBottom: 8, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: colors.border, gap: 10 },
     movIcono: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
     movEntradaBg: { backgroundColor: "#dcfce7" },
@@ -404,6 +547,10 @@ function makeStyles(colors: ReturnType<typeof useColors>, insets: ReturnType<typ
     artOpcionFoto: { width: 32, height: 32, borderRadius: 7 },
     artOpcionIco: { width: 32, height: 32, borderRadius: 7, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
     artOpcionTexto: { flex: 1, fontSize: 15, color: colors.foreground, fontFamily: "Inter_400Regular" },
+    transferDisp: { fontSize: 13, color: colors.mutedForeground, marginTop: -6, fontFamily: "Inter_400Regular" },
+    transferLabel: { fontSize: 13, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
+    destOpcion: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1.5, borderColor: colors.border, marginBottom: 8 },
+    destOpcionSel: { borderColor: colors.primary, backgroundColor: colors.accent },
     tipoRow: { flexDirection: "row", gap: 10 },
     tipoBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.muted },
     tipoBtnEntrada: { borderColor: "#16a34a", backgroundColor: "#dcfce7" },
