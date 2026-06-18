@@ -482,7 +482,7 @@ export default function PedidosScreen() {
               ) : null}
               {totalArts > 0 && (
                 <Text style={s.cardArts}>
-                  {item.articulos.length} artículo{item.articulos.length !== 1 ? "s" : ""} · {totalArts} uds
+                  {item.articulos.length} artículo{item.articulos.length !== 1 ? "s" : ""} · {totalArts} unidades
                 </Text>
               )}
               {item.almacenNombre ? (
@@ -622,7 +622,7 @@ export default function PedidosScreen() {
                       <View style={s.pickIco}><Feather name="box" size={16} color={colors.primary} /></View>
                     )}
                     <Text style={s.pickNombre}>{item.nombre}</Text>
-                    <Text style={s.pickStock}>{stockPorArticulo[item.id] ?? 0} uds</Text>
+                    <Text style={s.pickStock}>{stockPorArticulo[item.id] ?? 0} unidades</Text>
                     <Feather name="plus-circle" size={18} color={colors.primary} />
                   </TouchableOpacity>
                 )}
@@ -681,7 +681,7 @@ export default function PedidosScreen() {
                         )}
                         <Text style={s.detalleArtNombre}>{pa.articuloNombre}</Text>
                         <View style={s.detalleArtCantBadge}>
-                          <Text style={s.detalleArtCant}>{pa.cantidad} uds</Text>
+                          <Text style={s.detalleArtCant}>{pa.cantidad} unidades</Text>
                         </View>
                       </View>
                       );
