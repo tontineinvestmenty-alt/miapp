@@ -32,6 +32,8 @@ import {
   getAlmacenes,
   getArticulos,
   getPedidos,
+  getStock,
+  stockKey,
   savePedidos,
   updateStock,
 } from "@/utils/storage";
@@ -65,6 +67,7 @@ export default function PedidosScreen() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [almacenes, setAlmacenes] = useState<Almacen[]>([]);
   const [todosArticulos, setTodosArticulos] = useState<Articulo[]>([]);
+  const [stockPorArticulo, setStockPorArticulo] = useState<Record<string, number>>({});
 
   // modals
   const [modalCrear, setModalCrear] = useState(false);
@@ -112,10 +115,16 @@ export default function PedidosScreen() {
   const [articulosPedido, setArticulosPedido] = useState<PedidoArticulo[]>([]);
 
   useFocusEffect(useCallback(() => {
-    Promise.all([getPedidos(), getAlmacenes(), getArticulos()]).then(([p, a, arts]) => {
+    Promise.all([getPedidos(), getAlmacenes(), getArticulos(), getStock()]).then(([p, a, arts, stock]) => {
       setPedidos(p);
       setAlmacenes(a);
       setTodosArticulos(arts);
+      const totales: Record<string, number> = {};
+      for (const [k, cant] of Object.entries(stock)) {
+        const artId = k.split("::")[1];
+        if (artId) totales[artId] = (totales[artId] ?? 0) + cant;
+      }
+      setStockPorArticulo(totales);
       pedirPermisoNotificaciones().then((ok) => {
         if (ok) {
           programarAlertasPedidos(p);
@@ -613,9 +622,7 @@ export default function PedidosScreen() {
                       <View style={s.pickIco}><Feather name="box" size={16} color={colors.primary} /></View>
                     )}
                     <Text style={s.pickNombre}>{item.nombre}</Text>
-                    {item.precio != null && (
-                      <Text style={s.pickPrecio}>💲{item.precio.toFixed(2)}/u</Text>
-                    )}
+                    <Text style={s.pickStock}>{stockPorArticulo[item.id] ?? 0} uds</Text>
                     <Feather name="plus-circle" size={18} color={colors.primary} />
                   </TouchableOpacity>
                 )}
@@ -1020,7 +1027,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, fabBottom: number) {
     pickIco: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
     pickFoto: { width: 36, height: 36, borderRadius: 10 },
     pickNombre: { flex: 1, fontSize: 15, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
-    pickPrecio: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    pickStock: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_500Medium" },
     // detalle
     detalleEstadoBanner: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 16, marginBottom: 6 },
     detalleEstadoTxt: { fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
