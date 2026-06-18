@@ -86,8 +86,9 @@ export default function PedidosScreen() {
     setConfirm({ destructivo: false, ...opts });
   }
 
-  // búsqueda
+  // búsqueda y filtro
   const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState<EstadoPedido | null>(null);
 
   // form
   const [numCompra, setNumCompra] = useState("");
@@ -302,14 +303,22 @@ export default function PedidosScreen() {
   const sig = pedidoActivo ? estadoSiguiente(pedidoActivo.estado) : null;
   const sigInfo = sig ? estadoInfo(sig) : null;
 
-  // filtrado por búsqueda
+  // filtrado combinado: texto + estado
   const q = busqueda.trim().toLowerCase();
-  const pedidosFiltrados = q
-    ? pedidos.filter(p =>
-        p.numeroCompra.toLowerCase().includes(q) ||
-        p.numeroSeguimiento?.toLowerCase().includes(q)
-      )
-    : pedidos;
+  const pedidosFiltrados = pedidos.filter(p => {
+    if (filtroEstado && p.estado !== filtroEstado) return false;
+    if (q) return (
+      p.numeroCompra.toLowerCase().includes(q) ||
+      (p.numeroSeguimiento?.toLowerCase().includes(q) ?? false)
+    );
+    return true;
+  });
+
+  // conteo por estado para los chips
+  const conteoEstados = ESTADOS.reduce<Record<string, number>>((acc, e) => {
+    acc[e.key] = pedidos.filter(p => p.estado === e.key).length;
+    return acc;
+  }, {});
 
   // artículos no añadidos aún al pedido actual
   const articulosDisponibles = todosArticulos.filter(
@@ -338,6 +347,53 @@ export default function PedidosScreen() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* ── Filtro por estado ── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={s.filtroScroll}
+        contentContainerStyle={s.filtroContent}
+      >
+        {/* Chip "Todos" */}
+        <TouchableOpacity
+          style={[s.chip, filtroEstado === null && s.chipActivo]}
+          onPress={() => { Sounds.tap(); setFiltroEstado(null); }}
+          activeOpacity={0.75}
+        >
+          <Text style={[s.chipTxt, filtroEstado === null && s.chipTxtActivo]}>
+            Todos
+          </Text>
+          <View style={[s.chipBadge, filtroEstado === null && s.chipBadgeActivo]}>
+            <Text style={[s.chipBadgeTxt, filtroEstado === null && s.chipBadgeTxtActivo]}>
+              {pedidos.length}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        {ESTADOS.map(e => {
+          const activo = filtroEstado === e.key;
+          const n = conteoEstados[e.key] ?? 0;
+          return (
+            <TouchableOpacity
+              key={e.key}
+              style={[s.chip, activo && { backgroundColor: e.bg, borderColor: e.color }]}
+              onPress={() => { Sounds.tap(); setFiltroEstado(activo ? null : e.key); }}
+              activeOpacity={0.75}
+            >
+              <Feather name={e.icono as any} size={13} color={activo ? e.color : colors.mutedForeground} />
+              <Text style={[s.chipTxt, activo && { color: e.color, fontFamily: "Inter_700Bold" }]}>
+                {e.label}
+              </Text>
+              {n > 0 && (
+                <View style={[s.chipBadge, activo && { backgroundColor: e.color }]}>
+                  <Text style={[s.chipBadgeTxt, activo && s.chipBadgeTxtActivo]}>{n}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       <FlatList
         data={pedidosFiltrados}
@@ -712,9 +768,25 @@ function makeStyles(colors: ReturnType<typeof useColors>, fabBottom: number) {
   };
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: colors.card, paddingHorizontal: 16, paddingVertical: 10, gap: 10, marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderRadius: 16, ...cardShadow },
+    searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: colors.card, paddingHorizontal: 16, paddingVertical: 10, gap: 10, marginHorizontal: 16, marginTop: 12, marginBottom: 0, borderRadius: 16, ...cardShadow },
     searchIco: {},
     searchInput: { flex: 1, fontSize: 14, color: colors.foreground, fontFamily: "Inter_400Regular", paddingVertical: 4 },
+    // chips de filtro
+    filtroScroll: { flexGrow: 0 },
+    filtroContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 8, flexDirection: "row" },
+    chip: {
+      flexDirection: "row", alignItems: "center", gap: 6,
+      paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+      backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.border,
+      ...cardShadow,
+    },
+    chipActivo: { backgroundColor: colors.accent, borderColor: colors.primary },
+    chipTxt: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground },
+    chipTxtActivo: { color: colors.primary, fontFamily: "Inter_700Bold" },
+    chipBadge: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+    chipBadgeActivo: { backgroundColor: colors.primary },
+    chipBadgeTxt: { fontSize: 11, fontWeight: "700", fontFamily: "Inter_700Bold", color: colors.mutedForeground },
+    chipBadgeTxtActivo: { color: "#fff" },
     lista: { padding: 16, gap: 10, paddingBottom: TAB_BAR_HEIGHT + 80 },
     vacio: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 14 },
     vacioTitulo: { fontSize: 22, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold" },
