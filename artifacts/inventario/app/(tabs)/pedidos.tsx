@@ -38,21 +38,30 @@ import {
 
 const TAB_BAR_HEIGHT = Platform.OS === "web" ? 96 : 100;
 
-const ESTADOS: { key: EstadoPedido; label: string; color: string; bg: string; icono: string }[] = [
-  { key: "comprado",     label: "Comprado",      color: "#2563eb", bg: "#dbeafe", icono: "shopping-cart" },
-  { key: "en_casillero", label: "En casillero",  color: "#d97706", bg: "#fef3c7", icono: "inbox" },
-  { key: "enviado_cuba", label: "Enviado a Cuba", color: "#7c3aed", bg: "#ede9fe", icono: "send" },
-  { key: "en_almacen",   label: "En almacén",    color: "#16a34a", bg: "#dcfce7", icono: "check-circle" },
-];
+type EstadoConfig = { key: EstadoPedido; label: string; color: string; bg: string; icono: string };
 
-function estadoInfo(k: EstadoPedido) { return ESTADOS.find(e => e.key === k) ?? ESTADOS[0]; }
-function estadoSiguiente(k: EstadoPedido): EstadoPedido | null {
-  const idx = ESTADOS.findIndex(e => e.key === k);
-  return idx >= 0 && idx < ESTADOS.length - 1 ? ESTADOS[idx + 1].key : null;
+function makeEstados(c: ReturnType<typeof useColors>): EstadoConfig[] {
+  return [
+    { key: "comprado",     label: "Comprado",       icono: "shopping-cart", color: c.estadoComprado,    bg: c.estadoCompradoBg  },
+    { key: "en_casillero", label: "En casillero",   icono: "inbox",         color: c.estadoCasillero,   bg: c.estadoCasilleroBg },
+    { key: "enviado_cuba", label: "Enviado a Cuba",  icono: "send",          color: c.estadoEnviado,     bg: c.estadoEnviadoBg   },
+    { key: "en_almacen",   label: "En almacén",     icono: "check-circle",  color: c.estadoAlmacen,     bg: c.estadoAlmacenBg   },
+  ];
 }
 
 export default function PedidosScreen() {
   const colors = useColors();
+  const ESTADOS = makeEstados(colors);
+  function estadoInfo(k: EstadoPedido) { return ESTADOS.find(e => e.key === k) ?? ESTADOS[0]; }
+  function estadoSiguiente(k: EstadoPedido): EstadoPedido | null {
+    const idx = ESTADOS.findIndex(e => e.key === k);
+    return idx >= 0 && idx < ESTADOS.length - 1 ? ESTADOS[idx + 1].key : null;
+  }
+  function estadoAnterior(k: EstadoPedido): EstadoPedido | null {
+    const idx = ESTADOS.findIndex(e => e.key === k);
+    return idx > 0 ? ESTADOS[idx - 1].key : null;
+  }
+
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [almacenes, setAlmacenes] = useState<Almacen[]>([]);
   const [todosArticulos, setTodosArticulos] = useState<Articulo[]>([]);
@@ -168,11 +177,6 @@ export default function PedidosScreen() {
   // ── Detalle / estado ───────────────────────────────────────────────────────
 
   function abrirDetalle(p: Pedido) { setPedidoActivo(p); setModalDetalle(true); }
-
-  function estadoAnterior(k: EstadoPedido): EstadoPedido | null {
-    const idx = ESTADOS.findIndex(e => e.key === k);
-    return idx > 0 ? ESTADOS[idx - 1].key : null;
-  }
 
   function avanzarEstado(p: Pedido) {
     const sig = estadoSiguiente(p.estado);

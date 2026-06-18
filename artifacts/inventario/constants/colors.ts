@@ -20,6 +20,15 @@ export interface ColorPalette {
   border: string;
   input: string;
   shadow: string;
+  // colores por estado de pedido (theme-aware)
+  estadoComprado: string;
+  estadoCompradoBg: string;
+  estadoCasillero: string;
+  estadoCasilleroBg: string;
+  estadoEnviado: string;
+  estadoEnviadoBg: string;
+  estadoAlmacen: string;
+  estadoAlmacenBg: string;
 }
 
 const themes: Record<ThemeId, ColorPalette> = {
@@ -43,6 +52,14 @@ const themes: Record<ThemeId, ColorPalette> = {
     border: "#e4e8f4",
     input: "#e4e8f4",
     shadow: "#3b5bdb",
+    estadoComprado:    "#0284c7",
+    estadoCompradoBg:  "#e0f2fe",
+    estadoCasillero:   "#b45309",
+    estadoCasilleroBg: "#fef3c7",
+    estadoEnviado:     "#7c3aed",
+    estadoEnviadoBg:   "#ede9fe",
+    estadoAlmacen:     "#059669",
+    estadoAlmacenBg:   "#d1fae5",
   },
   verde: {
     text: "#0d1f14",
@@ -64,6 +81,14 @@ const themes: Record<ThemeId, ColorPalette> = {
     border: "#cdecd4",
     input: "#cdecd4",
     shadow: "#2f9e44",
+    estadoComprado:    "#0891b2",
+    estadoCompradoBg:  "#cffafe",
+    estadoCasillero:   "#b45309",
+    estadoCasilleroBg: "#fef3c7",
+    estadoEnviado:     "#4338ca",
+    estadoEnviadoBg:   "#e0e7ff",
+    estadoAlmacen:     "#16a34a",
+    estadoAlmacenBg:   "#dcfce7",
   },
   morado: {
     text: "#16103a",
@@ -85,6 +110,14 @@ const themes: Record<ThemeId, ColorPalette> = {
     border: "#e4d8ff",
     input: "#e4d8ff",
     shadow: "#6741d9",
+    estadoComprado:    "#0e7490",
+    estadoCompradoBg:  "#cffafe",
+    estadoCasillero:   "#b45309",
+    estadoCasilleroBg: "#fef3c7",
+    estadoEnviado:     "#9333ea",
+    estadoEnviadoBg:   "#f3e8ff",
+    estadoAlmacen:     "#0d9488",
+    estadoAlmacenBg:   "#ccfbf1",
   },
   naranja: {
     text: "#3d1404",
@@ -106,6 +139,14 @@ const themes: Record<ThemeId, ColorPalette> = {
     border: "#ffd9bb",
     input: "#ffd9bb",
     shadow: "#e8590c",
+    estadoComprado:    "#0284c7",
+    estadoCompradoBg:  "#e0f2fe",
+    estadoCasillero:   "#ca8a04",
+    estadoCasilleroBg: "#fefce8",
+    estadoEnviado:     "#c2410c",
+    estadoEnviadoBg:   "#ffedd5",
+    estadoAlmacen:     "#059669",
+    estadoAlmacenBg:   "#d1fae5",
   },
   oscuro: {
     text: "#eef0f8",
@@ -127,6 +168,14 @@ const themes: Record<ThemeId, ColorPalette> = {
     border: "rgba(255,255,255,0.07)",
     input: "rgba(255,255,255,0.09)",
     shadow: "#748ffc",
+    estadoComprado:    "#38bdf8",
+    estadoCompradoBg:  "#0c2233",
+    estadoCasillero:   "#fbbf24",
+    estadoCasilleroBg: "#241c04",
+    estadoEnviado:     "#a78bfa",
+    estadoEnviadoBg:   "#1a1040",
+    estadoAlmacen:     "#34d399",
+    estadoAlmacenBg:   "#072718",
   },
 };
 
