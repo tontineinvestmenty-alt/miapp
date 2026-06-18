@@ -384,12 +384,7 @@ export default function PedidosScreen() {
       </View>
 
       {/* ── Filtro por estado ── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={s.filtroScroll}
-        contentContainerStyle={s.filtroContent}
-      >
+      <View style={s.filtroWrap}>
         {/* Chip "Todos" */}
         <TouchableOpacity
           style={[s.chip, filtroEstado === null && s.chipActivo]}
@@ -428,7 +423,7 @@ export default function PedidosScreen() {
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </View>
 
       <FlatList
         data={pedidosFiltrados}
@@ -919,8 +914,10 @@ function makeStyles(colors: ReturnType<typeof useColors>, fabBottom: number) {
     searchIco: {},
     searchInput: { flex: 1, fontSize: 14, color: colors.foreground, fontFamily: "Inter_400Regular", paddingVertical: 4 },
     // chips de filtro
-    filtroScroll: { flexGrow: 0 },
-    filtroContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 8, flexDirection: "row" },
+    filtroWrap: {
+      flexDirection: "row", flexWrap: "wrap",
+      paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6, gap: 8,
+    },
     chip: {
       flexDirection: "row", alignItems: "center", gap: 6,
       paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
