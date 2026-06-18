@@ -1,0 +1,1 @@
+- [Expo web blank page debugging](expo-web-blank-page.md) — blank screen + 500 on `entry.bundle` + "MIME application/json not executable" = Metro compile error; curl the bundle URL to get the real file:line.

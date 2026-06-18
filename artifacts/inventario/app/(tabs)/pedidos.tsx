@@ -803,8 +803,8 @@ export default function PedidosScreen() {
       {pedidoActivo && (
         <Modal visible={modalAvanzar} transparent animationType="slide" onRequestClose={() => { setModalAvanzar(false); setModalDetalle(true); }}>
           <Pressable style={s.overlayBottom} onPress={() => { setModalAvanzar(false); setModalDetalle(true); }}>
-            {/* View en lugar de Pressable para no interceptar toques de hijos */}
-            <View style={s.sheetAvanzar}>
+            {/* Pressable con onPress vacío para detener la propagación al overlay (mismo patrón que el modal Crear) */}
+            <Pressable style={s.sheetAvanzar} onPress={() => {}}>
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
                 {/* Cabecera estado destino */}
@@ -905,7 +905,7 @@ export default function PedidosScreen() {
                 </View>
 
               </ScrollView>
-            </View>
+            </Pressable>
           </Pressable>
         </Modal>
       )}
