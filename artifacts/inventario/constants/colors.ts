@@ -181,13 +181,69 @@ const themes: Record<PresetThemeId, ColorPalette> = {
 };
 
 // ── Custom theme support ──────────────────────────────────────────────
+export interface EstadoColors {
+  comprado: string;
+  casillero: string;
+  enviado: string;
+  almacen: string;
+}
+
 export interface CustomThemeConfig {
   hue: number; // 0-360
   sat: number; // 0-100
   mode: "claro" | "oscuro";
+  estados?: EstadoColors; // base hex per order state (optional)
 }
 
+export const DEFAULT_ESTADOS: EstadoColors = {
+  comprado: "#0284c7",
+  casillero: "#d97706",
+  enviado: "#7c3aed",
+  almacen: "#059669",
+};
+
 export const DEFAULT_CUSTOM: CustomThemeConfig = { hue: 280, sat: 72, mode: "claro" };
+
+// Paleta de colores base sugeridos para los estados
+export const ESTADO_PALETA: string[] = [
+  "#0284c7", "#2563eb", "#7c3aed", "#db2777",
+  "#dc2626", "#ea580c", "#d97706", "#ca8a04",
+  "#059669", "#0d9488", "#65a30d", "#475569",
+];
+
+export function hexToHsl(hex: string): { h: number; s: number; l: number } {
+  let c = hex.replace("#", "");
+  if (c.length === 3) c = c.split("").map((x) => x + x).join("");
+  const r = parseInt(c.slice(0, 2), 16) / 255;
+  const g = parseInt(c.slice(2, 4), 16) / 255;
+  const b = parseInt(c.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  const l = (max + min) / 2;
+  const d = max - min;
+  let s = 0;
+  if (d !== 0) {
+    s = d / (1 - Math.abs(2 * l - 1));
+    switch (max) {
+      case r: h = ((g - b) / d) % 6; break;
+      case g: h = (b - r) / d + 2; break;
+      default: h = (r - g) / d + 4; break;
+    }
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  return { h, s: s * 100, l: l * 100 };
+}
+
+// Deriva el color de texto y de fondo de un chip de estado a partir de un color base
+function estadoChip(baseHex: string, mode: "claro" | "oscuro"): { fg: string; bg: string } {
+  const { h, s } = hexToHsl(baseHex);
+  if (mode === "oscuro") {
+    return { fg: hslToHex(h, clamp(s, 45, 90), 70), bg: hslToHex(h, clamp(s, 25, 55), 13) };
+  }
+  return { fg: hslToHex(h, clamp(s, 45, 92), 38), bg: hslToHex(h, clamp(s, 35, 80), 92) };
+}
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -213,6 +269,11 @@ export function hslToHex(h: number, s: number, l: number): string {
 
 export function buildCustomPalette(cfg: CustomThemeConfig): ColorPalette {
   const { hue, sat, mode } = cfg;
+  const est = cfg.estados ?? DEFAULT_ESTADOS;
+  const cComprado = estadoChip(est.comprado, mode);
+  const cCasillero = estadoChip(est.casillero, mode);
+  const cEnviado = estadoChip(est.enviado, mode);
+  const cAlmacen = estadoChip(est.almacen, mode);
   if (mode === "oscuro") {
     const primary = hslToHex(hue, Math.min(sat + 10, 95), 70);
     return {
@@ -235,10 +296,10 @@ export function buildCustomPalette(cfg: CustomThemeConfig): ColorPalette {
       border: "rgba(255,255,255,0.08)",
       input: "rgba(255,255,255,0.10)",
       shadow: primary,
-      estadoComprado: "#38bdf8", estadoCompradoBg: "#0c2233",
-      estadoCasillero: "#fbbf24", estadoCasilleroBg: "#241c04",
-      estadoEnviado: "#a78bfa", estadoEnviadoBg: "#1a1040",
-      estadoAlmacen: "#34d399", estadoAlmacenBg: "#072718",
+      estadoComprado: cComprado.fg, estadoCompradoBg: cComprado.bg,
+      estadoCasillero: cCasillero.fg, estadoCasilleroBg: cCasillero.bg,
+      estadoEnviado: cEnviado.fg, estadoEnviadoBg: cEnviado.bg,
+      estadoAlmacen: cAlmacen.fg, estadoAlmacenBg: cAlmacen.bg,
     };
   }
   const primary = hslToHex(hue, sat, 50);
@@ -263,10 +324,10 @@ export function buildCustomPalette(cfg: CustomThemeConfig): ColorPalette {
     border: hslToHex(hue, Math.min(sat, 42), 90),
     input: hslToHex(hue, Math.min(sat, 42), 90),
     shadow: primary,
-    estadoComprado: "#0284c7", estadoCompradoBg: "#e0f2fe",
-    estadoCasillero: "#b45309", estadoCasilleroBg: "#fef3c7",
-    estadoEnviado: "#7c3aed", estadoEnviadoBg: "#ede9fe",
-    estadoAlmacen: "#059669", estadoAlmacenBg: "#d1fae5",
+    estadoComprado: cComprado.fg, estadoCompradoBg: cComprado.bg,
+    estadoCasillero: cCasillero.fg, estadoCasilleroBg: cCasillero.bg,
+    estadoEnviado: cEnviado.fg, estadoEnviadoBg: cEnviado.bg,
+    estadoAlmacen: cAlmacen.fg, estadoAlmacenBg: cAlmacen.bg,
   };
 }
 

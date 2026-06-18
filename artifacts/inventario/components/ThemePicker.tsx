@@ -5,6 +5,7 @@ import {
   Modal,
   PanResponder,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,14 +15,35 @@ import {
 import {
   buildCustomPalette,
   CustomThemeConfig,
+  DEFAULT_ESTADOS,
+  ESTADO_PALETA,
+  EstadoColors,
   hslToHex,
   TEMAS,
 } from "@/constants/colors";
 import { useColors } from "@/hooks/useColors";
+import { useSound } from "@/contexts/SoundContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Sounds } from "@/utils/sounds";
+import { Sounds, SoundEffect } from "@/utils/sounds";
 
 const RAINBOW = ["#ff0000", "#ffae00", "#3bdb3b", "#00c8d6", "#3b5bdb", "#a13bdb", "#ff0080"] as const;
+
+const ESTADOS_EDIT: { key: keyof EstadoColors; label: string }[] = [
+  { key: "comprado", label: "Comprado" },
+  { key: "casillero", label: "En casillero" },
+  { key: "enviado", label: "A Cuba" },
+  { key: "almacen", label: "En almacén" },
+];
+
+const SONIDOS_EDIT: { key: SoundEffect; label: string; icon: keyof typeof Feather.glyphMap }[] = [
+  { key: "crear", label: "Crear o guardar", icon: "plus-circle" },
+  { key: "avanzar", label: "Avanzar pedido", icon: "arrow-right-circle" },
+  { key: "retroceder", label: "Retroceder pedido", icon: "arrow-left-circle" },
+  { key: "eliminar", label: "Eliminar", icon: "trash-2" },
+  { key: "abrir", label: "Abrir menú", icon: "maximize-2" },
+  { key: "tap", label: "Toque / botón", icon: "circle" },
+  { key: "backup", label: "Copia de seguridad", icon: "save" },
+];
 
 function ColorSlider({
   gradient,
@@ -80,8 +102,9 @@ function ColorSlider({
 export function ThemePickerButton() {
   const colors = useColors();
   const { themeId, setThemeId, customConfig, setCustomConfig } = useTheme();
+  const { customSounds, pickSound, resetSound, previewSound } = useSound();
   const [visible, setVisible] = useState(false);
-  const [screen, setScreen] = useState<"presets" | "editor">("presets");
+  const [screen, setScreen] = useState<"presets" | "editor" | "sounds">("presets");
   const [draft, setDraft] = useState<CustomThemeConfig>(customConfig);
 
   function abrir() {
@@ -96,6 +119,11 @@ export function ThemePickerButton() {
     setScreen("editor");
   }
 
+  function abrirSonidos() {
+    Sounds.tap();
+    setScreen("sounds");
+  }
+
   function aplicarCustom() {
     Sounds.tap();
     setCustomConfig(draft);
@@ -107,6 +135,7 @@ export function ThemePickerButton() {
   const preview = buildCustomPalette(draft);
   const satGradient = [hslToHex(draft.hue, 0, 55), hslToHex(draft.hue, 100, 50)] as const;
   const customActivo = themeId === "custom";
+  const sonidosActivos = Object.keys(customSounds).length;
 
   return (
     <>
@@ -191,9 +220,96 @@ export function ThemePickerButton() {
                   </View>
                   <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[s.customRow, { backgroundColor: colors.muted, borderColor: "transparent", marginTop: 10 }]}
+                  onPress={abrirSonidos}
+                  activeOpacity={0.8}
+                >
+                  <View style={[s.customSwatch, { backgroundColor: colors.primary }]}>
+                    <Feather name="music" size={18} color={colors.primaryForeground} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.customTitulo, { color: colors.foreground }]}>Sonidos</Text>
+                    <Text style={[s.customSub, { color: colors.mutedForeground }]}>
+                      {sonidosActivos > 0 ? `${sonidosActivos} personalizado${sonidosActivos > 1 ? "s" : ""}` : "Usa tus propios audios"}
+                    </Text>
+                  </View>
+                  <Feather name="chevron-right" size={20} color={colors.mutedForeground} />
+                </TouchableOpacity>
               </>
+            ) : screen === "sounds" ? (
+              <ScrollView
+                style={s.editorScroll}
+                contentContainerStyle={{ gap: 6, paddingBottom: 4 }}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={s.editorHeader}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      Sounds.tap();
+                      setScreen("presets");
+                    }}
+                    style={[s.backBtn, { backgroundColor: colors.muted }]}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Feather name="chevron-left" size={20} color={colors.foreground} />
+                  </TouchableOpacity>
+                  <Text style={[s.titulo, { color: colors.foreground, flex: 1 }]}>Sonidos</Text>
+                </View>
+                <Text style={[s.subtitulo, { color: colors.mutedForeground, textAlign: "left", marginBottom: 4 }]}>
+                  Asigna un audio de tu dispositivo a cada efecto. Sin audio se usa el sonido por defecto.
+                </Text>
+
+                {SONIDOS_EDIT.map((e) => {
+                  const custom = !!customSounds[e.key];
+                  return (
+                    <View key={e.key} style={[s.soundRow, { backgroundColor: colors.muted }]}>
+                      <View style={[s.soundIcon, { backgroundColor: colors.card }]}>
+                        <Feather name={e.icon} size={16} color={colors.primary} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[s.soundLabel, { color: colors.foreground }]}>{e.label}</Text>
+                        <Text style={[s.soundState, { color: custom ? colors.primary : colors.mutedForeground }]}>
+                          {custom ? "Audio personalizado" : "Sonido por defecto"}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => previewSound(e.key)}
+                        style={[s.soundBtn, { backgroundColor: colors.card }]}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Feather name="play" size={15} color={colors.foreground} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => pickSound(e.key)}
+                        style={[s.soundBtn, { backgroundColor: colors.card }]}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Feather name="upload" size={15} color={colors.foreground} />
+                      </TouchableOpacity>
+                      {custom && (
+                        <TouchableOpacity
+                          onPress={() => {
+                            Sounds.tap();
+                            resetSound(e.key);
+                          }}
+                          style={[s.soundBtn, { backgroundColor: colors.card }]}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Feather name="x" size={15} color={colors.destructive} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
             ) : (
-              <>
+              <ScrollView
+                style={s.editorScroll}
+                contentContainerStyle={{ gap: 6, paddingBottom: 4 }}
+                showsVerticalScrollIndicator={false}
+              >
                 <View style={s.editorHeader}>
                   <TouchableOpacity
                     onPress={() => {
@@ -213,11 +329,19 @@ export function ThemePickerButton() {
                   <View style={[s.previewCard, { backgroundColor: preview.card }]}>
                     <Text style={[s.previewTitle, { color: preview.foreground }]}>Vista previa</Text>
                     <View style={s.previewChips}>
+                      <View style={[s.previewChip, { backgroundColor: preview.estadoCompradoBg }]}>
+                        <Text style={[s.previewChipTxt, { color: preview.estadoComprado }]}>Comprado</Text>
+                      </View>
+                      <View style={[s.previewChip, { backgroundColor: preview.estadoCasilleroBg }]}>
+                        <Text style={[s.previewChipTxt, { color: preview.estadoCasillero }]}>Casillero</Text>
+                      </View>
+                    </View>
+                    <View style={s.previewChips}>
+                      <View style={[s.previewChip, { backgroundColor: preview.estadoEnviadoBg }]}>
+                        <Text style={[s.previewChipTxt, { color: preview.estadoEnviado }]}>A Cuba</Text>
+                      </View>
                       <View style={[s.previewChip, { backgroundColor: preview.estadoAlmacenBg }]}>
                         <Text style={[s.previewChipTxt, { color: preview.estadoAlmacen }]}>En almacén</Text>
-                      </View>
-                      <View style={[s.previewChip, { backgroundColor: preview.secondary }]}>
-                        <Text style={[s.previewChipTxt, { color: preview.secondaryForeground }]}>Etiqueta</Text>
                       </View>
                     </View>
                     <View style={[s.previewBtn, { backgroundColor: preview.primary }]}>
@@ -277,6 +401,38 @@ export function ThemePickerButton() {
                   })}
                 </View>
 
+                {/* Colores de estados */}
+                <Text style={[s.fieldLabel, { color: colors.foreground }]}>Colores de estados</Text>
+                {ESTADOS_EDIT.map((e) => {
+                  const sel = (draft.estados ?? DEFAULT_ESTADOS)[e.key];
+                  return (
+                    <View key={e.key} style={s.estadoRow}>
+                      <Text style={[s.estadoLabel, { color: colors.mutedForeground }]}>{e.label}</Text>
+                      <View style={s.estadoDots}>
+                        {ESTADO_PALETA.map((c) => {
+                          const activo = c.toLowerCase() === sel.toLowerCase();
+                          return (
+                            <TouchableOpacity
+                              key={c}
+                              onPress={() => {
+                                Sounds.tap();
+                                setDraft((d) => ({
+                                  ...d,
+                                  estados: { ...(d.estados ?? DEFAULT_ESTADOS), [e.key]: c },
+                                }));
+                              }}
+                              activeOpacity={0.7}
+                              style={[s.estadoDot, { backgroundColor: c }, activo && s.estadoDotActivo]}
+                            >
+                              {activo && <Feather name="check" size={13} color="#fff" />}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  );
+                })}
+
                 <TouchableOpacity
                   style={[s.aplicarBtn, { backgroundColor: preview.primary }]}
                   onPress={aplicarCustom}
@@ -285,7 +441,7 @@ export function ThemePickerButton() {
                   <Feather name="check" size={18} color={preview.primaryForeground} />
                   <Text style={[s.aplicarTxt, { color: preview.primaryForeground }]}>Aplicar tema</Text>
                 </TouchableOpacity>
-              </>
+              </ScrollView>
             )}
           </Pressable>
         </Pressable>
@@ -360,6 +516,7 @@ const s = StyleSheet.create({
   customSwatch: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   customTitulo: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   customSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  editorScroll: { maxHeight: 480 },
   editorHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
   backBtn: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   preview: { borderRadius: 18, padding: 12, borderWidth: 1, marginTop: 6, marginBottom: 10 },
@@ -371,6 +528,22 @@ const s = StyleSheet.create({
   previewBtn: { paddingVertical: 10, borderRadius: 12, alignItems: "center" },
   previewBtnTxt: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   fieldLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginTop: 8 },
+  estadoRow: { marginTop: 10 },
+  estadoLabel: { fontSize: 12, fontFamily: "Inter_500Medium", marginBottom: 6 },
+  estadoDots: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  estadoDot: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  estadoDotActivo: { borderWidth: 2, borderColor: "#fff", transform: [{ scale: 1.12 }] },
+  soundRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 10, borderRadius: 14, marginTop: 8 },
+  soundIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  soundLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  soundState: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  soundBtn: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   modeRow: { flexDirection: "row", borderRadius: 14, padding: 4, marginTop: 8 },
   modeBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 9, borderRadius: 11 },
   modeTxt: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
