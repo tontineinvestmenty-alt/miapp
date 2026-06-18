@@ -62,8 +62,13 @@ export default function PedidosScreen() {
   const [modalDetalle, setModalDetalle] = useState(false);
   const [modalAlmacen, setModalAlmacen] = useState(false);
   const [modalPickArt, setModalPickArt] = useState(false);
+  const [modalAvanzar, setModalAvanzar] = useState(false);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [pedidoActivo, setPedidoActivo] = useState<Pedido | null>(null);
+
+  // estado modal avanzar
+  const [cantAvance, setCantAvance] = useState<Record<string, number>>({});
+  const [nuevoSeguimientoAvance, setNuevoSeguimientoAvance] = useState("");
 
   // confirmación universal (reemplaza Alert.alert — funciona en web y nativo)
   const [confirm, setConfirm] = useState<{
@@ -169,33 +174,63 @@ export default function PedidosScreen() {
     return idx > 0 ? ESTADOS[idx - 1].key : null;
   }
 
-  async function avanzarEstado(p: Pedido) {
+  function avanzarEstado(p: Pedido) {
     const sig = estadoSiguiente(p.estado);
     if (!sig) return;
-    const sigI = estadoInfo(sig);
-
-    const totalUds = p.articulos?.reduce((s, a) => s + a.cantidad, 0) ?? 0;
-    const mensajeStock =
-      sig === "en_almacen" && totalUds > 0
-        ? `\nSe sumarán ${totalUds} unidades al stock del almacén elegido.`
-        : "";
-
+    // inicializar cantidades al máximo de cada artículo
+    const init: Record<string, number> = {};
+    for (const pa of p.articulos ?? []) init[pa.articuloId] = pa.cantidad;
+    setCantAvance(init);
+    setNuevoSeguimientoAvance("");
     setModalDetalle(false);
-    pedirConfirmacion({
-      titulo: `Avanzar a "${sigI.label}"`,
-      mensaje: `¿Confirmas que el pedido #${p.numeroCompra} pasó a "${sigI.label}"?${mensajeStock}`,
-      confirmLabel: "Confirmar",
-      onCancel: () => setModalDetalle(true),
-      onConfirm: async () => {
-        if (sig === "en_almacen") {
-          setPedidoActivo(p);
-          setModalAlmacen(true);
-          return;
-        }
-        await actualizarEstado(p.id, sig);
-        Sounds.avanzar();
-      },
+    setModalAvanzar(true);
+  }
+
+  async function confirmarAvance() {
+    if (!pedidoActivo) return;
+    const sig = estadoSiguiente(pedidoActivo.estado);
+    if (!sig) return;
+
+    const hoy = fechaHoy();
+
+    // artículos con la cantidad elegida (excluir los que quedaron en 0)
+    const articulosAvance = (pedidoActivo.articulos ?? [])
+      .map(pa => ({ ...pa, cantidad: cantAvance[pa.articuloId] ?? pa.cantidad }))
+      .filter(pa => pa.cantidad > 0);
+
+    const pedidoActualizado: Pedido = {
+      ...pedidoActivo,
+      articulos: articulosAvance,
+      ...(nuevoSeguimientoAvance.trim()
+        ? { numeroSeguimiento: nuevoSeguimientoAvance.trim() }
+        : {}),
+    };
+
+    setModalAvanzar(false);
+
+    if (sig === "en_almacen") {
+      // guardar cambios de cantidad/seguimiento antes de elegir almacén
+      const listaTemp = pedidos.map(p => p.id === pedidoActivo.id ? pedidoActualizado : p);
+      setPedidos(listaTemp);
+      await savePedidos(listaTemp);
+      setPedidoActivo(pedidoActualizado);
+      setModalAlmacen(true);
+      return;
+    }
+
+    // avanzar estado en un solo guardado
+    const lista = pedidos.map(p =>
+      p.id === pedidoActivo.id
+        ? { ...pedidoActualizado, estado: sig, fechaUltimoEstado: hoy }
+        : p
+    );
+    setPedidos(lista);
+    await savePedidos(lista);
+    pedirPermisoNotificaciones().then(ok => {
+      if (ok) { programarAlertasPedidos(lista); programarRecordatorioDiario(lista); }
     });
+    setPedidoActivo(null);
+    Sounds.avanzar();
   }
 
   async function retrocederEstado(p: Pedido) {
@@ -747,6 +782,118 @@ export default function PedidosScreen() {
         </Pressable>
       </Modal>
 
+      {/* ── Modal Avanzar Estado ── */}
+      {pedidoActivo && (
+        <Modal visible={modalAvanzar} transparent animationType="slide" onRequestClose={() => { setModalAvanzar(false); setModalDetalle(true); }}>
+          <Pressable style={s.overlayBottom} onPress={() => { setModalAvanzar(false); setModalDetalle(true); }}>
+            <Pressable style={s.sheetAvanzar} onPress={() => {}}>
+              {/* Cabecera */}
+              {(() => {
+                const sig2 = estadoSiguiente(pedidoActivo.estado);
+                const sigI2 = sig2 ? estadoInfo(sig2) : null;
+                const esCasilleroACuba = pedidoActivo.estado === "en_casillero" && sig2 === "enviado_cuba";
+                const tieneArts = (pedidoActivo.articulos?.length ?? 0) > 0;
+                return (
+                  <>
+                    <View style={[s.avanzarHeader, { backgroundColor: sigI2?.bg ?? colors.card }]}>
+                      <Feather name={(sigI2?.icono ?? "arrow-right") as any} size={18} color={sigI2?.color ?? colors.primary} />
+                      <Text style={[s.avanzarHeaderTxt, { color: sigI2?.color ?? colors.primary }]}>
+                        Avanzar a "{sigI2?.label ?? ""}"
+                      </Text>
+                    </View>
+
+                    {/* Artículos con steppers */}
+                    {tieneArts && (
+                      <View style={s.avanzarSeccion}>
+                        <Text style={s.avanzarSeccionTitulo}>¿Cuántas unidades avanzan?</Text>
+                        {pedidoActivo.articulos.map(pa => {
+                          const foto = todosArticulos.find(a => a.id === pa.articuloId)?.foto;
+                          const cant = cantAvance[pa.articuloId] ?? pa.cantidad;
+                          return (
+                            <View key={pa.articuloId} style={s.stepperFila}>
+                              {foto ? (
+                                <Image source={{ uri: foto }} style={s.stepperFoto} contentFit="cover" />
+                              ) : (
+                                <View style={s.stepperIco}><Feather name="box" size={14} color={colors.primary} /></View>
+                              )}
+                              <Text style={s.stepperNombre} numberOfLines={1}>{pa.articuloNombre}</Text>
+                              <View style={s.stepper}>
+                                <TouchableOpacity
+                                  style={[s.stepperBtn, cant <= 0 && s.stepperBtnOff]}
+                                  onPress={() => setCantAvance(prev => ({ ...prev, [pa.articuloId]: Math.max(0, cant - 1) }))}
+                                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                >
+                                  <Feather name="minus" size={14} color={cant <= 0 ? colors.mutedForeground : colors.primary} />
+                                </TouchableOpacity>
+                                <Text style={[s.stepperVal, cant === 0 && s.stepperValCero]}>
+                                  {cant}<Text style={s.stepperMax}>/{pa.cantidad}</Text>
+                                </Text>
+                                <TouchableOpacity
+                                  style={[s.stepperBtn, cant >= pa.cantidad && s.stepperBtnOff]}
+                                  onPress={() => setCantAvance(prev => ({ ...prev, [pa.articuloId]: Math.min(pa.cantidad, cant + 1) }))}
+                                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                >
+                                  <Feather name="plus" size={14} color={cant >= pa.cantidad ? colors.mutedForeground : colors.primary} />
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+
+                    {/* Campo seguimiento (solo casillero → cuba) */}
+                    {esCasilleroACuba && (
+                      <View style={s.avanzarSeccion}>
+                        <Text style={s.avanzarSeccionTitulo}>
+                          <Feather name="send" size={13} color="#7c3aed" /> Nuevo n° de seguimiento (opcional)
+                        </Text>
+                        <Text style={s.avanzarSeccionSub}>
+                          {pedidoActivo.numeroSeguimiento
+                            ? `Actual: ${pedidoActivo.numeroSeguimiento}`
+                            : "Este envío aún no tiene número de seguimiento"}
+                        </Text>
+                        <View style={s.seguimientoInput}>
+                          <Feather name="map-pin" size={15} color="#7c3aed" />
+                          <TextInput
+                            style={s.seguimientoTxt}
+                            placeholder="Ej. CUCU123456789…"
+                            placeholderTextColor={colors.mutedForeground}
+                            value={nuevoSeguimientoAvance}
+                            onChangeText={setNuevoSeguimientoAvance}
+                            autoCorrect={false}
+                            autoCapitalize="characters"
+                          />
+                          {nuevoSeguimientoAvance.length > 0 && (
+                            <TouchableOpacity onPress={() => setNuevoSeguimientoAvance("")}>
+                              <Feather name="x-circle" size={15} color={colors.mutedForeground} />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Botones */}
+                    <View style={s.modalBotones}>
+                      <TouchableOpacity style={[s.boton, s.botonCancelar]} onPress={() => { setModalAvanzar(false); setModalDetalle(true); }}>
+                        <Text style={s.botonCancelarTxt}>Cancelar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[s.boton, s.botonCrear, { backgroundColor: sigI2?.color ?? colors.primary }]}
+                        onPress={confirmarAvance}
+                      >
+                        <Feather name="check" size={15} color="#fff" />
+                        <Text style={s.botonCrearTxt}>Confirmar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                );
+              })()}
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
+
       {/* ── Calendar ── */}
       <CalendarPicker
         visible={calendarVisible}
@@ -882,5 +1029,46 @@ function makeStyles(colors: ReturnType<typeof useColors>, fabBottom: number) {
     almacenOpcion: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
     almacenIcono: { width: 38, height: 38, borderRadius: 11, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
     almacenNombre: { flex: 1, fontSize: 16, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
+    // modal avanzar estado
+    sheetAvanzar: {
+      backgroundColor: colors.card,
+      borderTopLeftRadius: 28, borderTopRightRadius: 28,
+      padding: 24, paddingBottom: 44, gap: 12, maxHeight: "88%",
+    },
+    avanzarHeader: {
+      flexDirection: "row", alignItems: "center", gap: 10,
+      padding: 14, borderRadius: 16, marginBottom: 4,
+    },
+    avanzarHeaderTxt: { fontSize: 17, fontWeight: "700", fontFamily: "Inter_700Bold" },
+    avanzarSeccion: { gap: 10 },
+    avanzarSeccionTitulo: { fontSize: 13, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold" },
+    avanzarSeccionSub: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular", marginTop: -6 },
+    // stepper filas
+    stepperFila: {
+      flexDirection: "row", alignItems: "center", gap: 10,
+      backgroundColor: colors.muted, borderRadius: 14,
+      paddingHorizontal: 12, paddingVertical: 10,
+    },
+    stepperFoto: { width: 32, height: 32, borderRadius: 8 },
+    stepperIco: { width: 32, height: 32, borderRadius: 8, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+    stepperNombre: { flex: 1, fontSize: 13, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
+    stepper: { flexDirection: "row", alignItems: "center", gap: 6 },
+    stepperBtn: {
+      width: 30, height: 30, borderRadius: 9,
+      backgroundColor: colors.card, alignItems: "center", justifyContent: "center",
+      ...cardShadow,
+    },
+    stepperBtnOff: { opacity: 0.4 },
+    stepperVal: { fontSize: 15, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold", minWidth: 34, textAlign: "center" },
+    stepperValCero: { color: colors.mutedForeground },
+    stepperMax: { fontSize: 11, fontWeight: "400", color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
+    // campo seguimiento nuevo
+    seguimientoInput: {
+      flexDirection: "row", alignItems: "center", gap: 10,
+      borderWidth: 1.5, borderColor: "#7c3aed33",
+      borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
+      backgroundColor: "#ede9fe55",
+    },
+    seguimientoTxt: { flex: 1, fontSize: 14, color: colors.foreground, fontFamily: "Inter_400Regular" },
   });
 }
