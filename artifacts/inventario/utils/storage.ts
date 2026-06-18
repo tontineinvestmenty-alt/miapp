@@ -59,7 +59,21 @@ const KEYS = {
   stock: "inventario_stock",
   historial: "inventario_historial",
   pedidos: "inventario_pedidos",
+  actividad: "inventario_actividad",
 };
+
+export type ActividadTipo = "almacen" | "articulo" | "pedido" | "stock" | "sistema";
+
+export interface Actividad {
+  id: string;
+  tipo: ActividadTipo;
+  accion: string;
+  titulo: string;
+  detalle?: string;
+  fecha: string;
+  hora: string;
+  timestamp: number;
+}
 
 export function genId() {
   return Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -219,6 +233,33 @@ export async function agregarMovimiento(mov: Omit<Movimiento, "id" | "fecha" | "
   await set(KEYS.historial, all);
 }
 
+// ─── Actividad (registro global) ───────────────────────────────────────────────
+
+const MAX_ACTIVIDAD = 500;
+
+export async function getActividad(): Promise<Actividad[]> {
+  return get<Actividad[]>(KEYS.actividad);
+}
+
+export async function registrarActividad(
+  entry: { tipo: ActividadTipo; accion: string; titulo: string; detalle?: string }
+): Promise<void> {
+  const all = await getActividad();
+  const nuevo: Actividad = {
+    ...entry,
+    id: genId(),
+    fecha: fechaHoy(),
+    hora: horaAhora(),
+    timestamp: Date.now(),
+  };
+  all.unshift(nuevo);
+  await set(KEYS.actividad, all.slice(0, MAX_ACTIVIDAD));
+}
+
+export async function limpiarActividad(): Promise<void> {
+  await set(KEYS.actividad, []);
+}
+
 // ─── Backup ───────────────────────────────────────────────────────────────────
 
 export interface BackupData {
@@ -229,13 +270,14 @@ export interface BackupData {
   stock: Record<string, number>;
   historial: Movimiento[];
   pedidos: Pedido[];
+  actividad?: Actividad[];
 }
 
 export async function crearBackup(): Promise<BackupData> {
-  const [almacenes, articulos, stock, historial, pedidos] = await Promise.all([
-    getAlmacenes(), getArticulos(), getStock(), getHistorial(), getPedidos(),
+  const [almacenes, articulos, stock, historial, pedidos, actividad] = await Promise.all([
+    getAlmacenes(), getArticulos(), getStock(), getHistorial(), getPedidos(), getActividad(),
   ]);
-  return { version: 1, exportadoEn: new Date().toISOString(), almacenes, articulos, stock, historial, pedidos };
+  return { version: 1, exportadoEn: new Date().toISOString(), almacenes, articulos, stock, historial, pedidos, actividad };
 }
 
 export async function restaurarBackup(data: BackupData): Promise<void> {
@@ -246,6 +288,7 @@ export async function restaurarBackup(data: BackupData): Promise<void> {
     set(KEYS.stock, data.stock ?? {}),
     set(KEYS.historial, data.historial ?? []),
     set(KEYS.pedidos, data.pedidos ?? []),
+    set(KEYS.actividad, data.actividad ?? []),
   ]);
 }
 

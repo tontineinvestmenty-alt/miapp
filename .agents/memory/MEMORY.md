@@ -1,4 +1,5 @@
 - [Expo web blank page debugging](expo-web-blank-page.md) — blank screen + 500 on `entry.bundle` + "MIME application/json not executable" = Metro compile error; curl the bundle URL to get the real file:line.
+- [RN async UI races](rn-async-ui-races.md) — PIN pads need functional setState + ref guard; submit handlers need a submitting guard; useConfirm needs single-flight + unmount cleanup or it hangs.
 - [Expo SDK 54 filesystem & media](expo-sdk54-fs-media.md) — classic FS API lives at `expo-file-system/legacy`; copy picker cache URIs into documentDirectory to persist; expo-audio (native) / HTML5 Audio (web) with fallback.
 - [RN Modal stuck open on web](rnw-modal-stuck-open.md) — a `Modal animationType="fade"` won't close on web if a heavy re-render (app-wide restyle) fires in the same handler; use `animationType="none"`.
 - [Inventario stock model & transfers](inventario-stock-model.md) — stock is one AsyncStorage map keyed `almacenId::articuloId`; any cross-key move must be one atomic read-modify-write deriving moved=min(req,available).

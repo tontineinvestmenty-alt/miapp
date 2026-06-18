@@ -16,9 +16,10 @@ import {
   View,
 } from "react-native";
 
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { useColors } from "@/hooks/useColors";
 import { Sounds } from "@/utils/sounds";
-import { Articulo, genId, fechaHoy, getArticulos, saveArticulos } from "@/utils/storage";
+import { Articulo, genId, fechaHoy, getArticulos, registrarActividad, saveArticulos } from "@/utils/storage";
 
 const TAB_BAR_HEIGHT = Platform.OS === "web" ? 96 : 100;
 
@@ -28,6 +29,7 @@ function fmtPrecio(n: number) {
 
 export default function ArticulosScreen() {
   const colors = useColors();
+  const confirm = useConfirm();
   const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editando, setEditando] = useState<Articulo | null>(null);
@@ -102,18 +104,28 @@ export default function ArticulosScreen() {
 
     setArticulos(lista);
     await saveArticulos(lista);
+    await registrarActividad({
+      tipo: "articulo",
+      accion: editando ? "editar" : "crear",
+      titulo: `${editando ? "Artículo editado" : "Artículo creado"} · ${nombreFinal}`,
+    });
     setModalVisible(false);
     Sounds.crear();
   }
 
   async function eliminar(id: string, nombreArt: string) {
+    const ok = await confirm({
+      titulo: "Eliminar artículo",
+      mensaje: `¿Eliminar "${nombreArt}"? Esta acción no se puede deshacer.`,
+      confirmLabel: "Eliminar",
+      destructivo: true,
+    });
+    if (!ok) return;
     const lista = articulos.filter((a) => a.id !== id);
     setArticulos(lista);
     await saveArticulos(lista);
+    await registrarActividad({ tipo: "articulo", accion: "eliminar", titulo: `Artículo eliminado · ${nombreArt}` });
     Sounds.eliminar();
-    if (Platform.OS === "web") {
-      alert(`"${nombreArt}" eliminado.`);
-    }
   }
 
   const fabBottom = TAB_BAR_HEIGHT + 10;

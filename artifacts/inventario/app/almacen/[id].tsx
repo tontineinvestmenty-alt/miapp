@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { useColors } from "@/hooks/useColors";
 import {
   Almacen,
@@ -28,6 +29,7 @@ import {
   getArticulos,
   getHistorialAlmacen,
   getStockAlmacen,
+  registrarActividad,
   transferirStock,
   updateStock,
 } from "@/utils/storage";
@@ -39,6 +41,7 @@ export default function AlmacenDetalle() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const confirm = useConfirm();
 
   const [almacen, setAlmacen] = useState<Almacen | null>(null);
   const [articulos, setArticulos] = useState<Articulo[]>([]);
@@ -124,6 +127,13 @@ export default function AlmacenDetalle() {
       cantidad: cant,
     });
 
+    await registrarActividad({
+      tipo: "stock",
+      accion: tipoMov,
+      titulo: `${tipoMov === "entrada" ? "Entrada" : "Salida"} de ${cant} · ${articuloSeleccionado.nombre}`,
+      detalle: almacen?.nombre ? `Almacén: ${almacen.nombre}` : undefined,
+    });
+
     setModalMovimiento(false);
     setArticuloSeleccionado(null);
     await cargar();
@@ -152,6 +162,14 @@ export default function AlmacenDetalle() {
     const cant = parseInt(cantidadTexto, 10);
     if (!cant || cant <= 0) return;
 
+    const destinoNombre = destinos.find((d) => d.id === destinoId)?.nombre ?? "otro almacén";
+    const ok = await confirm({
+      titulo: "Confirmar transferencia",
+      mensaje: `¿Transferir ${cant} unidad${cant === 1 ? "" : "es"} de "${articuloSeleccionado.nombre}" a "${destinoNombre}"?`,
+      confirmLabel: "Transferir",
+    });
+    if (!ok) return;
+
     const moved = await transferirStock(id, destinoId, articuloSeleccionado.id, cant);
     if (moved <= 0) {
       setModalTransferir(false);
@@ -175,6 +193,13 @@ export default function AlmacenDetalle() {
       cantidad: moved,
     });
 
+    await registrarActividad({
+      tipo: "stock",
+      accion: "transferir",
+      titulo: `Transferencia de ${moved} · ${articuloSeleccionado.nombre}`,
+      detalle: `${almacen?.nombre ?? "Origen"} → ${destinoNombre}`,
+    });
+
     setModalTransferir(false);
     setArticuloSeleccionado(null);
     setDestinoId(null);
@@ -182,16 +207,23 @@ export default function AlmacenDetalle() {
     Sounds.avanzar();
   }
 
-  function confirmarQuitarArticulo(artId: string) {
-    Alert.alert("Quitar artículo", "¿Quitar este artículo del almacén? El historial se conserva.", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Quitar", style: "destructive", onPress: async () => {
-          await updateStock(id!, artId, -99999);
-          await cargar();
-        }
-      },
-    ]);
+  async function confirmarQuitarArticulo(artId: string) {
+    const ok = await confirm({
+      titulo: "Quitar artículo",
+      mensaje: "¿Quitar este artículo del almacén? El historial se conserva.",
+      confirmLabel: "Quitar",
+      destructivo: true,
+    });
+    if (!ok) return;
+    const nombre = articuloNombre(artId);
+    await updateStock(id!, artId, -99999);
+    await registrarActividad({
+      tipo: "stock",
+      accion: "quitar",
+      titulo: `Artículo quitado · ${nombre}`,
+      detalle: almacen?.nombre ? `Almacén: ${almacen.nombre}` : undefined,
+    });
+    await cargar();
   }
 
   const styles = makeStyles(colors, insets);

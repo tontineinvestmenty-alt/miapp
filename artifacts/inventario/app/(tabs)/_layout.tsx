@@ -1,14 +1,36 @@
 import { BlurView } from "expo-blur";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, View } from "react-native";
+import { Platform, TouchableOpacity, View } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 import { ThemePickerButton } from "@/components/ThemePicker";
+
+function HeaderActions() {
+  const colors = useColors();
+  const router = useRouter();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingRight: 4 }}>
+      <TouchableOpacity
+        onPress={() => router.push("/actividad")}
+        hitSlop={8}
+        style={{ padding: 6 }}>
+        <Feather name="clock" size={21} color={colors.foreground} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={() => router.push("/seguridad")}
+        hitSlop={8}
+        style={{ padding: 6 }}>
+        <Feather name="shield" size={21} color={colors.foreground} />
+      </TouchableOpacity>
+      <ThemePickerButton />
+    </View>
+  );
+}
 
 function NativeTabLayout() {
   return (
@@ -57,7 +79,7 @@ function ClassicTabLayout() {
           fontSize: 20,
         },
         headerShadowVisible: false,
-        headerRight: () => <ThemePickerButton />,
+        headerRight: () => <HeaderActions />,
         tabBarStyle: {
           position: "absolute",
           bottom: isWeb ? 16 : 20,

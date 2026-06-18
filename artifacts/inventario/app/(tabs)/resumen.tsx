@@ -25,6 +25,7 @@ import {
   getAlmacenes,
   getArticulos,
   getStock,
+  registrarActividad,
   restaurarBackup,
 } from "@/utils/storage";
 
@@ -148,6 +149,7 @@ export default function ResumenScreen() {
     setMensajeBackup(null);
     try {
       await restaurarBackup(backupPendiente);
+      await registrarActividad({ tipo: "sistema", accion: "restaurar", titulo: "Backup restaurado", detalle: "Todos los datos fueron reemplazados" });
       setBackupPendiente(null);
       calcular();
       Sounds.backup();

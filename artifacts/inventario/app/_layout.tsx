@@ -14,8 +14,12 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { LockScreen } from "@/components/LockScreen";
+import { ConfirmProvider } from "@/contexts/ConfirmContext";
+import { SecurityProvider, useSecurity } from "@/contexts/SecurityContext";
 import { SoundProvider } from "@/contexts/SoundContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { useColors } from "@/hooks/useColors";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -23,11 +27,29 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const colors = useColors();
   return (
-    <Stack screenOptions={{ headerBackTitle: "Back" }}>
+    <Stack
+      screenOptions={{
+        headerBackTitle: "Atrás",
+        headerStyle: { backgroundColor: colors.background },
+        headerTitleStyle: { color: colors.foreground, fontFamily: "Inter_700Bold" },
+        headerTintColor: colors.primary,
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: colors.background },
+      }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="actividad" options={{ title: "Actividad" }} />
+      <Stack.Screen name="seguridad" options={{ title: "Seguridad" }} />
     </Stack>
   );
+}
+
+function AuthGate() {
+  const { ready, locked } = useSecurity();
+  if (!ready) return null;
+  if (locked) return <LockScreen />;
+  return <RootLayoutNav />;
 }
 
 export default function RootLayout() {
@@ -51,13 +73,17 @@ export default function RootLayout() {
       <ErrorBoundary>
         <ThemeProvider>
           <SoundProvider>
-            <QueryClientProvider client={queryClient}>
-              <GestureHandlerRootView>
-                <KeyboardProvider>
-                  <RootLayoutNav />
-                </KeyboardProvider>
-              </GestureHandlerRootView>
-            </QueryClientProvider>
+            <SecurityProvider>
+              <ConfirmProvider>
+                <QueryClientProvider client={queryClient}>
+                  <GestureHandlerRootView>
+                    <KeyboardProvider>
+                      <AuthGate />
+                    </KeyboardProvider>
+                  </GestureHandlerRootView>
+                </QueryClientProvider>
+              </ConfirmProvider>
+            </SecurityProvider>
           </SoundProvider>
         </ThemeProvider>
       </ErrorBoundary>

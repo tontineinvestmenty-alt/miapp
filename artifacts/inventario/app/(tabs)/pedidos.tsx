@@ -34,6 +34,7 @@ import {
   getPedidos,
   getStock,
   stockKey,
+  registrarActividad,
   savePedidos,
   updateStock,
 } from "@/utils/storage";
@@ -179,6 +180,7 @@ export default function PedidosScreen() {
     const lista = [nuevo, ...pedidos];
     setPedidos(lista);
     await savePedidos(lista);
+    await registrarActividad({ tipo: "pedido", accion: "crear", titulo: `Pedido creado · #${nuevo.numeroCompra}` });
     setModalCrear(false);
     Sounds.crear();
   }
@@ -239,6 +241,11 @@ export default function PedidosScreen() {
     );
     setPedidos(lista);
     await savePedidos(lista);
+    await registrarActividad({
+      tipo: "pedido",
+      accion: "avanzar",
+      titulo: `Pedido #${pedidoActivo.numeroCompra} → ${estadoInfo(sig).label}`,
+    });
     pedirPermisoNotificaciones().then(ok => {
       if (ok) { programarAlertasPedidos(lista); programarRecordatorioDiario(lista); }
     });
@@ -284,6 +291,12 @@ export default function PedidosScreen() {
         );
         setPedidos(lista);
         await savePedidos(lista);
+        await registrarActividad({
+          tipo: "pedido",
+          accion: "retroceder",
+          titulo: `Pedido #${p.numeroCompra} → ${prevI.label}`,
+          detalle: tieneStock ? `Stock revertido en "${p.almacenNombre}"` : undefined,
+        });
         setPedidoActivo(lista.find(x => x.id === p.id) ?? null);
         Sounds.retroceder();
       },
@@ -322,6 +335,12 @@ export default function PedidosScreen() {
     }
 
     await actualizarEstado(pedidoActivo.id, "en_almacen", almacen);
+    await registrarActividad({
+      tipo: "pedido",
+      accion: "enviar",
+      titulo: `Pedido #${pedidoActivo.numeroCompra} → En almacén`,
+      detalle: `Recibido en "${almacen.nombre}"`,
+    });
     setModalAlmacen(false);
     setPedidoActivo(null);
     Sounds.crear();
@@ -336,9 +355,11 @@ export default function PedidosScreen() {
       destructivo: true,
       onCancel: () => setModalDetalle(true),
       onConfirm: async () => {
+        const num = pedidos.find(p => p.id === id)?.numeroCompra ?? "";
         const lista = pedidos.filter(p => p.id !== id);
         setPedidos(lista);
         await savePedidos(lista);
+        await registrarActividad({ tipo: "pedido", accion: "eliminar", titulo: `Pedido eliminado · #${num}` });
       },
     });
   }

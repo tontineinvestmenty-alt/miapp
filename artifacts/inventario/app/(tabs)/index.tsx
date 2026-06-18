@@ -17,7 +17,7 @@ import {
 
 import { useColors } from "@/hooks/useColors";
 import { Sounds } from "@/utils/sounds";
-import { Almacen, genId, fechaHoy, getAlmacenes, saveAlmacenes } from "@/utils/storage";
+import { Almacen, genId, fechaHoy, getAlmacenes, registrarActividad, saveAlmacenes } from "@/utils/storage";
 
 const TAB_BAR_HEIGHT = Platform.OS === "web" ? 96 : 100;
 
@@ -69,6 +69,7 @@ export default function AlmacenesScreen() {
     const lista = [nuevo, ...almacenes];
     setAlmacenes(lista);
     await saveAlmacenes(lista);
+    await registrarActividad({ tipo: "almacen", accion: "crear", titulo: `Almacén creado · ${nombre}` });
     setModalVisible(false);
     setNuevoNombre("");
     setNuevaFoto(undefined);
@@ -85,9 +86,11 @@ export default function AlmacenesScreen() {
   }
 
   async function eliminar(id: string) {
+    const nombre = almacenes.find((a) => a.id === id)?.nombre ?? "almacén";
     const lista = almacenes.filter((a) => a.id !== id);
     setAlmacenes(lista);
     await saveAlmacenes(lista);
+    await registrarActividad({ tipo: "almacen", accion: "eliminar", titulo: `Almacén eliminado · ${nombre}` });
     setConfirm(null);
     Sounds.eliminar();
   }
