@@ -22,7 +22,7 @@ export async function exportarArchivoBackup(): Promise<void> {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   } else {
-    const path = (FileSystem.cacheDirectory ?? "") + nombre;
+    const path = ((FileSystem as unknown as Record<string, string>)["cacheDirectory"] ?? "") + nombre;
     await FileSystem.writeAsStringAsync(path, json, { encoding: FileSystem.EncodingType.UTF8 });
     const disponible = await Sharing.isAvailableAsync();
     if (disponible) {

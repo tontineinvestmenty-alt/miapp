@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
+import { Sounds } from "@/utils/sounds";
 import { Image } from "expo-image";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -35,7 +35,7 @@ import {
   updateStock,
 } from "@/utils/storage";
 
-const TAB_BAR_HEIGHT = Platform.OS === "web" ? 84 : 49;
+const TAB_BAR_HEIGHT = Platform.OS === "web" ? 96 : 100;
 
 const ESTADOS: { key: EstadoPedido; label: string; color: string; bg: string; icono: string }[] = [
   { key: "comprado",     label: "Comprado",      color: "#2563eb", bg: "#dbeafe", icono: "shopping-cart" },
@@ -148,7 +148,7 @@ export default function PedidosScreen() {
     setPedidos(lista);
     await savePedidos(lista);
     setModalCrear(false);
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Sounds.crear();
   }
 
   // ── Detalle / estado ───────────────────────────────────────────────────────
@@ -184,7 +184,7 @@ export default function PedidosScreen() {
           return;
         }
         await actualizarEstado(p.id, sig);
-        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        Sounds.avanzar();
       },
     });
   }
@@ -228,7 +228,7 @@ export default function PedidosScreen() {
         setPedidos(lista);
         await savePedidos(lista);
         setPedidoActivo(lista.find(x => x.id === p.id) ?? null);
-        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        Sounds.retroceder();
       },
     });
   }
@@ -263,7 +263,7 @@ export default function PedidosScreen() {
     await actualizarEstado(pedidoActivo.id, "en_almacen", almacen);
     setModalAlmacen(false);
     setPedidoActivo(null);
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Sounds.crear();
   }
 
   function confirmarEliminar(id: string) {
@@ -386,7 +386,8 @@ export default function PedidosScreen() {
       />
 
       <TouchableOpacity style={s.fab} onPress={abrirCrear} activeOpacity={0.85}>
-        <Feather name="plus" size={28} color="#fff" />
+        <Feather name="plus" size={20} color="#fff" />
+        <Text style={s.fabTxt}>Nuevo</Text>
       </TouchableOpacity>
 
       {/* ── Modal Crear ── */}
@@ -690,94 +691,112 @@ export default function PedidosScreen() {
 }
 
 function makeStyles(colors: ReturnType<typeof useColors>, fabBottom: number) {
+  const cardShadow = {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  };
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border, paddingHorizontal: 14, paddingVertical: 8, gap: 8 },
+    searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: colors.card, paddingHorizontal: 16, paddingVertical: 10, gap: 10, marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderRadius: 16, ...cardShadow },
     searchIco: {},
-    searchInput: { flex: 1, fontSize: 14, color: colors.foreground, fontFamily: "Inter_400Regular", paddingVertical: 6 },
-    lista: { padding: 16, paddingBottom: TAB_BAR_HEIGHT + 80 },
-    vacio: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 10 },
-    vacioTitulo: { fontSize: 20, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
-    vacioTexto: { fontSize: 14, color: colors.mutedForeground, textAlign: "center", paddingHorizontal: 24, fontFamily: "Inter_400Regular" },
-    card: { backgroundColor: colors.card, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: colors.border, gap: 5 },
+    searchInput: { flex: 1, fontSize: 14, color: colors.foreground, fontFamily: "Inter_400Regular", paddingVertical: 4 },
+    lista: { padding: 16, gap: 10, paddingBottom: TAB_BAR_HEIGHT + 80 },
+    vacio: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 14 },
+    vacioTitulo: { fontSize: 22, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold" },
+    vacioTexto: { fontSize: 14, color: colors.mutedForeground, textAlign: "center", paddingHorizontal: 40, fontFamily: "Inter_400Regular", lineHeight: 20 },
+    card: { backgroundColor: colors.card, borderRadius: 18, padding: 16, gap: 6, ...cardShadow },
     cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    estadoBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
+    estadoBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
     estadoBadgeTxt: { fontSize: 11, fontWeight: "700", fontFamily: "Inter_700Bold" },
     cardFecha: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
-    cardNumCompra: { fontSize: 16, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold" },
+    cardNumCompra: { fontSize: 17, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold" },
     cardSeguimiento: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     cardArts: { fontSize: 12, color: colors.primary, fontFamily: "Inter_600SemiBold" },
-    cardAlmacen: { fontSize: 12, color: "#16a34a", fontFamily: "Inter_600SemiBold" },
-    progreso: { flexDirection: "row", alignItems: "center", marginTop: 6 },
+    cardAlmacen: { fontSize: 12, color: "#2f9e44", fontFamily: "Inter_600SemiBold" },
+    progreso: { flexDirection: "row", alignItems: "center", marginTop: 8 },
     progPunto: { width: 10, height: 10, borderRadius: 5 },
     progPuntoInactivo: { backgroundColor: colors.border },
-    progLinea: { flex: 1, height: 2 },
+    progLinea: { flex: 1, height: 2, borderRadius: 1 },
     progLineaInactiva: { backgroundColor: colors.border },
-    fab: { position: "absolute", right: 20, bottom: fabBottom, width: 58, height: 58, borderRadius: 29, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 },
+    fab: {
+      position: "absolute", right: 20, bottom: fabBottom,
+      flexDirection: "row", alignItems: "center", gap: 8,
+      paddingHorizontal: 22, paddingVertical: 16, borderRadius: 28,
+      backgroundColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.45,
+      shadowRadius: 12,
+      elevation: 10,
+    },
+    fabTxt: { fontSize: 15, fontWeight: "700", color: "#fff", fontFamily: "Inter_700Bold" },
     // overlays
     overlayBottom: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
     overlayCenter: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center", padding: 20 },
-    sheet: { backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 24, paddingBottom: 40, gap: 10, maxHeight: "92%" },
-    sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: "center", marginBottom: 6 },
-    sheetTitulo: { fontSize: 18, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold", marginBottom: 6 },
-    modalCenter: { backgroundColor: colors.card, borderRadius: 18, padding: 20, width: "100%", maxWidth: 400, gap: 10, maxHeight: "85%" },
+    sheet: { backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 40, gap: 10, maxHeight: "92%" },
+    sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: "center", marginBottom: 8 },
+    sheetTitulo: { fontSize: 20, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold", marginBottom: 4 },
+    modalCenter: { backgroundColor: colors.card, borderRadius: 24, padding: 20, width: "100%", maxWidth: 400, gap: 10, maxHeight: "85%" },
     fieldLabel: { fontSize: 13, fontWeight: "600", color: colors.mutedForeground, fontFamily: "Inter_600SemiBold", marginBottom: 4 },
-    input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: colors.foreground, backgroundColor: colors.background, fontFamily: "Inter_400Regular", marginBottom: 10 },
-    inputMulti: { height: 70, textAlignVertical: "top" },
-    dateBtn: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: colors.background, marginBottom: 10 },
-    dateBtnTxt: { fontSize: 15, fontFamily: "Inter_400Regular" },
+    input: { borderWidth: 1.5, borderColor: colors.input, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13, fontSize: 15, color: colors.foreground, backgroundColor: colors.muted, fontFamily: "Inter_400Regular", marginBottom: 8 },
+    inputMulti: { height: 72, textAlignVertical: "top" },
+    dateBtn: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1.5, borderColor: colors.input, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13, backgroundColor: colors.muted, marginBottom: 8 },
+    dateBtnTxt: { fontSize: 15, fontFamily: "Inter_400Regular", color: colors.foreground },
     // artículos en formulario
-    artSeccionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
-    addArtBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.accent, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-    addArtTxt: { fontSize: 12, fontWeight: "600", color: colors.primary, fontFamily: "Inter_600SemiBold" },
-    artVacioArea: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1.5, borderColor: colors.border, borderStyle: "dashed", borderRadius: 10, padding: 14, marginBottom: 10, justifyContent: "center" },
+    artSeccionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+    addArtBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+    addArtTxt: { fontSize: 12, fontWeight: "700", color: colors.primary, fontFamily: "Inter_700Bold" },
+    artVacioArea: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1.5, borderColor: colors.border, borderStyle: "dashed", borderRadius: 14, padding: 16, marginBottom: 8, justifyContent: "center" },
     artVacioTxt: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_400Regular", textAlign: "center" },
-    artFila: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.muted, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 6 },
-    artFilaIco: { width: 28, height: 28, borderRadius: 7, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
-    artFilaFoto: { width: 28, height: 28, borderRadius: 7 },
+    artFila: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: colors.muted, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 6 },
+    artFilaIco: { width: 30, height: 30, borderRadius: 8, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+    artFilaFoto: { width: 30, height: 30, borderRadius: 8 },
     artFilaNombre: { flex: 1, fontSize: 13, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
-    artFilaCant: { flexDirection: "row", alignItems: "center", gap: 6 },
-    cantBtn: { width: 26, height: 26, borderRadius: 7, backgroundColor: colors.card, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border },
-    cantNum: { fontSize: 14, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold", minWidth: 22, textAlign: "center" },
+    artFilaCant: { flexDirection: "row", alignItems: "center", gap: 8 },
+    cantBtn: { width: 28, height: 28, borderRadius: 8, backgroundColor: colors.card, alignItems: "center", justifyContent: "center", ...cardShadow },
+    cantNum: { fontSize: 15, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold", minWidth: 24, textAlign: "center" },
     // pick artículo modal
-    pickVacio: { alignItems: "center", paddingVertical: 24, gap: 8 },
-    pickFila: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-    pickIco: { width: 34, height: 34, borderRadius: 8, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
-    pickFoto: { width: 34, height: 34, borderRadius: 8 },
-    pickNombre: { flex: 1, fontSize: 14, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
+    pickVacio: { alignItems: "center", paddingVertical: 28, gap: 10 },
+    pickFila: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border },
+    pickIco: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+    pickFoto: { width: 36, height: 36, borderRadius: 10 },
+    pickNombre: { flex: 1, fontSize: 15, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
     pickPrecio: { fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     // detalle
-    detalleEstadoBanner: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, marginBottom: 4 },
-    detalleEstadoTxt: { fontSize: 15, fontWeight: "700", fontFamily: "Inter_700Bold" },
-    detalleRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 4 },
+    detalleEstadoBanner: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 16, marginBottom: 6 },
+    detalleEstadoTxt: { fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
+    detalleRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 5 },
     detalleLbl: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     detalleVal: { fontSize: 14, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
-    detalleArtsBox: { backgroundColor: colors.muted, borderRadius: 10, padding: 12, gap: 6, marginVertical: 4 },
-    detalleArtsTitle: { fontSize: 12, fontWeight: "700", color: colors.primary, fontFamily: "Inter_700Bold", marginBottom: 4 },
-    detalleArtFila: { flexDirection: "row", alignItems: "center", gap: 8 },
-    detalleArtFoto: { width: 26, height: 26, borderRadius: 6 },
-    detalleArtIco: { width: 26, height: 26, borderRadius: 6, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+    detalleArtsBox: { backgroundColor: colors.muted, borderRadius: 14, padding: 14, gap: 8, marginVertical: 4 },
+    detalleArtsTitle: { fontSize: 12, fontWeight: "700", color: colors.primary, fontFamily: "Inter_700Bold", marginBottom: 2 },
+    detalleArtFila: { flexDirection: "row", alignItems: "center", gap: 10 },
+    detalleArtFoto: { width: 28, height: 28, borderRadius: 7 },
+    detalleArtIco: { width: 28, height: 28, borderRadius: 7, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
     detalleArtNombre: { flex: 1, fontSize: 13, color: colors.foreground, fontFamily: "Inter_600SemiBold" },
-    detalleArtCantBadge: { backgroundColor: colors.accent, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
+    detalleArtCantBadge: { backgroundColor: colors.accent, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
     detalleArtCant: { fontSize: 12, fontWeight: "700", color: colors.primary, fontFamily: "Inter_700Bold" },
-    botonAvanzar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 12, marginTop: 4 },
-    botonAvanzarTxt: { fontSize: 15, fontWeight: "700", color: "#fff", fontFamily: "Inter_700Bold" },
-    botonRetroceder: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: colors.border },
+    botonAvanzar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 15, borderRadius: 14, marginTop: 6 },
+    botonAvanzarTxt: { fontSize: 16, fontWeight: "700", color: "#fff", fontFamily: "Inter_700Bold" },
+    botonRetroceder: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 11, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border },
     botonRetrocederTxt: { fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_400Regular" },
     modalBotones: { flexDirection: "row", gap: 10, marginTop: 4 },
-    boton: { flex: 1, flexDirection: "row", paddingVertical: 13, borderRadius: 10, alignItems: "center", justifyContent: "center", gap: 6 },
+    boton: { flex: 1, flexDirection: "row", paddingVertical: 14, borderRadius: 14, alignItems: "center", justifyContent: "center", gap: 6 },
     botonCancelar: { backgroundColor: colors.muted },
-    botonCancelarTxt: { fontSize: 14, fontWeight: "600", color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" },
+    botonCancelarTxt: { fontSize: 15, fontWeight: "600", color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" },
     botonCrear: { backgroundColor: colors.primary },
-    botonCrearTxt: { fontSize: 14, fontWeight: "600", color: "#fff", fontFamily: "Inter_600SemiBold" },
-    botonDisabled: { opacity: 0.4 },
-    botonDestructivo: { backgroundColor: "#dc2626" },
+    botonCrearTxt: { fontSize: 15, fontWeight: "700", color: "#fff", fontFamily: "Inter_700Bold" },
+    botonDisabled: { opacity: 0.35 },
+    botonDestructivo: { backgroundColor: "#e03131" },
     confirmMensaje: { fontSize: 14, color: colors.mutedForeground, fontFamily: "Inter_400Regular", lineHeight: 20 },
     // almacén
-    almacenResumen: { flexDirection: "row", alignItems: "flex-start", gap: 6, backgroundColor: colors.accent, padding: 10, borderRadius: 10 },
+    almacenResumen: { flexDirection: "row", alignItems: "flex-start", gap: 8, backgroundColor: colors.accent, padding: 12, borderRadius: 14 },
     almacenResumenTxt: { flex: 1, fontSize: 12, color: colors.primary, fontFamily: "Inter_400Regular" },
-    almacenOpcion: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.border },
-    almacenIcono: { width: 36, height: 36, borderRadius: 9, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
-    almacenNombre: { flex: 1, fontSize: 15, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
+    almacenOpcion: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+    almacenIcono: { width: 38, height: 38, borderRadius: 11, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+    almacenNombre: { flex: 1, fontSize: 16, fontWeight: "600", color: colors.foreground, fontFamily: "Inter_600SemiBold" },
   });
 }
