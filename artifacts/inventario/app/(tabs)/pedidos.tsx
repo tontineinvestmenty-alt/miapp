@@ -341,6 +341,10 @@ export default function PedidosScreen() {
   const activo = pedidoActivo ? estadoInfo(pedidoActivo.estado) : ESTADOS[0];
   const sig = pedidoActivo ? estadoSiguiente(pedidoActivo.estado) : null;
   const sigInfo = sig ? estadoInfo(sig) : null;
+  // variables del modal avanzar (calculadas aquí para evitar IIFE en JSX)
+  const sigAvanzar = pedidoActivo ? estadoSiguiente(pedidoActivo.estado) : null;
+  const sigInfoAvanzar = sigAvanzar ? estadoInfo(sigAvanzar) : null;
+  const esCasilleroACuba = pedidoActivo?.estado === "en_casillero" && sigAvanzar === "enviado_cuba";
 
   // filtrado combinado: texto + estado
   const q = busqueda.trim().toLowerCase();
@@ -785,110 +789,109 @@ export default function PedidosScreen() {
       {pedidoActivo && (
         <Modal visible={modalAvanzar} transparent animationType="slide" onRequestClose={() => { setModalAvanzar(false); setModalDetalle(true); }}>
           <Pressable style={s.overlayBottom} onPress={() => { setModalAvanzar(false); setModalDetalle(true); }}>
-            <Pressable style={s.sheetAvanzar} onPress={() => {}}>
-              {/* Cabecera */}
-              {(() => {
-                const sig2 = estadoSiguiente(pedidoActivo.estado);
-                const sigI2 = sig2 ? estadoInfo(sig2) : null;
-                const esCasilleroACuba = pedidoActivo.estado === "en_casillero" && sig2 === "enviado_cuba";
-                const tieneArts = (pedidoActivo.articulos?.length ?? 0) > 0;
-                return (
-                  <>
-                    <View style={[s.avanzarHeader, { backgroundColor: sigI2?.bg ?? colors.card }]}>
-                      <Feather name={(sigI2?.icono ?? "arrow-right") as any} size={18} color={sigI2?.color ?? colors.primary} />
-                      <Text style={[s.avanzarHeaderTxt, { color: sigI2?.color ?? colors.primary }]}>
-                        Avanzar a "{sigI2?.label ?? ""}"
-                      </Text>
-                    </View>
+            {/* View en lugar de Pressable para no interceptar toques de hijos */}
+            <View style={s.sheetAvanzar}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-                    {/* Artículos con steppers */}
-                    {tieneArts && (
-                      <View style={s.avanzarSeccion}>
-                        <Text style={s.avanzarSeccionTitulo}>¿Cuántas unidades avanzan?</Text>
-                        {pedidoActivo.articulos.map(pa => {
-                          const foto = todosArticulos.find(a => a.id === pa.articuloId)?.foto;
-                          const cant = cantAvance[pa.articuloId] ?? pa.cantidad;
-                          return (
-                            <View key={pa.articuloId} style={s.stepperFila}>
-                              {foto ? (
-                                <Image source={{ uri: foto }} style={s.stepperFoto} contentFit="cover" />
-                              ) : (
-                                <View style={s.stepperIco}><Feather name="box" size={14} color={colors.primary} /></View>
-                              )}
-                              <Text style={s.stepperNombre} numberOfLines={1}>{pa.articuloNombre}</Text>
-                              <View style={s.stepper}>
-                                <TouchableOpacity
-                                  style={[s.stepperBtn, cant <= 0 && s.stepperBtnOff]}
-                                  onPress={() => setCantAvance(prev => ({ ...prev, [pa.articuloId]: Math.max(0, cant - 1) }))}
-                                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                >
-                                  <Feather name="minus" size={14} color={cant <= 0 ? colors.mutedForeground : colors.primary} />
-                                </TouchableOpacity>
-                                <Text style={[s.stepperVal, cant === 0 && s.stepperValCero]}>
-                                  {cant}<Text style={s.stepperMax}>/{pa.cantidad}</Text>
-                                </Text>
-                                <TouchableOpacity
-                                  style={[s.stepperBtn, cant >= pa.cantidad && s.stepperBtnOff]}
-                                  onPress={() => setCantAvance(prev => ({ ...prev, [pa.articuloId]: Math.min(pa.cantidad, cant + 1) }))}
-                                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                >
-                                  <Feather name="plus" size={14} color={cant >= pa.cantidad ? colors.mutedForeground : colors.primary} />
-                                </TouchableOpacity>
-                              </View>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    )}
+                {/* Cabecera estado destino */}
+                <View style={[s.avanzarHeader, { backgroundColor: sigInfoAvanzar?.bg ?? colors.card }]}>
+                  <Feather name={(sigInfoAvanzar?.icono ?? "arrow-right") as any} size={18} color={sigInfoAvanzar?.color ?? colors.primary} />
+                  <Text style={[s.avanzarHeaderTxt, { color: sigInfoAvanzar?.color ?? colors.primary }]}>
+                    Avanzar a "{sigInfoAvanzar?.label ?? ""}"
+                  </Text>
+                </View>
 
-                    {/* Campo seguimiento (solo casillero → cuba) */}
-                    {esCasilleroACuba && (
-                      <View style={s.avanzarSeccion}>
-                        <Text style={s.avanzarSeccionTitulo}>
-                          <Feather name="send" size={13} color="#7c3aed" /> Nuevo n° de seguimiento (opcional)
-                        </Text>
-                        <Text style={s.avanzarSeccionSub}>
-                          {pedidoActivo.numeroSeguimiento
-                            ? `Actual: ${pedidoActivo.numeroSeguimiento}`
-                            : "Este envío aún no tiene número de seguimiento"}
-                        </Text>
-                        <View style={s.seguimientoInput}>
-                          <Feather name="map-pin" size={15} color="#7c3aed" />
-                          <TextInput
-                            style={s.seguimientoTxt}
-                            placeholder="Ej. CUCU123456789…"
-                            placeholderTextColor={colors.mutedForeground}
-                            value={nuevoSeguimientoAvance}
-                            onChangeText={setNuevoSeguimientoAvance}
-                            autoCorrect={false}
-                            autoCapitalize="characters"
-                          />
-                          {nuevoSeguimientoAvance.length > 0 && (
-                            <TouchableOpacity onPress={() => setNuevoSeguimientoAvance("")}>
-                              <Feather name="x-circle" size={15} color={colors.mutedForeground} />
-                            </TouchableOpacity>
+                {/* Artículos con steppers */}
+                {(pedidoActivo.articulos?.length ?? 0) > 0 && (
+                  <View style={[s.avanzarSeccion, { marginTop: 12 }]}>
+                    <Text style={s.avanzarSeccionTitulo}>¿Cuántas unidades avanzan?</Text>
+                    {pedidoActivo.articulos.map(pa => {
+                      const foto = todosArticulos.find(a => a.id === pa.articuloId)?.foto;
+                      const cant = cantAvance[pa.articuloId] ?? pa.cantidad;
+                      return (
+                        <View key={pa.articuloId} style={s.stepperFila}>
+                          {foto ? (
+                            <Image source={{ uri: foto }} style={s.stepperFoto} contentFit="cover" />
+                          ) : (
+                            <View style={s.stepperIco}><Feather name="box" size={14} color={colors.primary} /></View>
                           )}
+                          <Text style={s.stepperNombre} numberOfLines={1}>{pa.articuloNombre}</Text>
+                          <View style={s.stepper}>
+                            <TouchableOpacity
+                              style={[s.stepperBtn, cant <= 0 && s.stepperBtnOff]}
+                              onPress={() => setCantAvance(prev => ({
+                                ...prev,
+                                [pa.articuloId]: Math.max(0, (prev[pa.articuloId] ?? pa.cantidad) - 1),
+                              }))}
+                            >
+                              <Feather name="minus" size={14} color={cant <= 0 ? colors.mutedForeground : colors.primary} />
+                            </TouchableOpacity>
+                            <Text style={[s.stepperVal, cant === 0 && s.stepperValCero]}>
+                              {cant}<Text style={s.stepperMax}>/{pa.cantidad}</Text>
+                            </Text>
+                            <TouchableOpacity
+                              style={[s.stepperBtn, cant >= pa.cantidad && s.stepperBtnOff]}
+                              onPress={() => setCantAvance(prev => ({
+                                ...prev,
+                                [pa.articuloId]: Math.min(pa.cantidad, (prev[pa.articuloId] ?? pa.cantidad) + 1),
+                              }))}
+                            >
+                              <Feather name="plus" size={14} color={cant >= pa.cantidad ? colors.mutedForeground : colors.primary} />
+                            </TouchableOpacity>
+                          </View>
                         </View>
-                      </View>
-                    )}
+                      );
+                    })}
+                  </View>
+                )}
 
-                    {/* Botones */}
-                    <View style={s.modalBotones}>
-                      <TouchableOpacity style={[s.boton, s.botonCancelar]} onPress={() => { setModalAvanzar(false); setModalDetalle(true); }}>
-                        <Text style={s.botonCancelarTxt}>Cancelar</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[s.boton, s.botonCrear, { backgroundColor: sigI2?.color ?? colors.primary }]}
-                        onPress={confirmarAvance}
-                      >
-                        <Feather name="check" size={15} color="#fff" />
-                        <Text style={s.botonCrearTxt}>Confirmar</Text>
-                      </TouchableOpacity>
+                {/* Campo seguimiento (solo casillero → cuba) */}
+                {esCasilleroACuba && (
+                  <View style={[s.avanzarSeccion, { marginTop: 12 }]}>
+                    <Text style={s.avanzarSeccionTitulo}>
+                      Nuevo n° de seguimiento (opcional)
+                    </Text>
+                    <Text style={s.avanzarSeccionSub}>
+                      {pedidoActivo.numeroSeguimiento
+                        ? `Actual: ${pedidoActivo.numeroSeguimiento}`
+                        : "Este envío aún no tiene número de seguimiento"}
+                    </Text>
+                    <View style={s.seguimientoInput}>
+                      <Feather name="map-pin" size={15} color={colors.estadoEnviado} />
+                      <TextInput
+                        style={s.seguimientoTxt}
+                        placeholder="Ej. CUCU123456789…"
+                        placeholderTextColor={colors.mutedForeground}
+                        value={nuevoSeguimientoAvance}
+                        onChangeText={setNuevoSeguimientoAvance}
+                        autoCorrect={false}
+                        autoCapitalize="characters"
+                      />
+                      {nuevoSeguimientoAvance.length > 0 && (
+                        <TouchableOpacity onPress={() => setNuevoSeguimientoAvance("")}>
+                          <Feather name="x-circle" size={15} color={colors.mutedForeground} />
+                        </TouchableOpacity>
+                      )}
                     </View>
-                  </>
-                );
-              })()}
-            </Pressable>
+                  </View>
+                )}
+
+                {/* Botones */}
+                <View style={[s.modalBotones, { marginTop: 16 }]}>
+                  <TouchableOpacity style={[s.boton, s.botonCancelar]} onPress={() => { setModalAvanzar(false); setModalDetalle(true); }}>
+                    <Text style={s.botonCancelarTxt}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[s.boton, s.botonCrear, { backgroundColor: sigInfoAvanzar?.color ?? colors.primary }]}
+                    onPress={confirmarAvance}
+                  >
+                    <Feather name="check" size={15} color="#fff" />
+                    <Text style={s.botonCrearTxt}>Confirmar</Text>
+                  </TouchableOpacity>
+                </View>
+
+              </ScrollView>
+            </View>
           </Pressable>
         </Modal>
       )}
