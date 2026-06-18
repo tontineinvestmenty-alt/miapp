@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
+import { Sounds } from "@/utils/sounds";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -7,7 +7,6 @@ import {
   Alert,
   FlatList,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -121,7 +120,7 @@ export default function AlmacenDetalle() {
     setModalMovimiento(false);
     setArticuloSeleccionado(null);
     await cargar();
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Sounds.crear();
   }
 
   function confirmarQuitarArticulo(artId: string) {

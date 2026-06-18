@@ -50,6 +50,7 @@ export interface Pedido {
   almacenNombre?: string;
   notas?: string;
   creadoEn: string;
+  fechaUltimoEstado?: string;
 }
 
 const KEYS = {

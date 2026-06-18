@@ -150,8 +150,8 @@ export default function ArticulosScreen() {
               <Text style={styles.tarjetaNombre}>{item.nombre}</Text>
               <Text style={styles.tarjetaFecha}>
                 {item.precio != null
-                  ? `$${fmtPrecio(item.precio)} USD`
-                  : "Sin precio"}
+                  ? `Precio: $${fmtPrecio(item.precio)} USD`
+                  : "Sin precio registrado"}
               </Text>
             </View>
             <View style={styles.acciones}>
@@ -228,11 +228,12 @@ export default function ArticulosScreen() {
               maxLength={60}
             />
 
+            <Text style={styles.fieldLabel}>Precio unitario (opcional)</Text>
             <View style={styles.precioRow}>
               <Text style={styles.precioSimbolo}>$</Text>
               <TextInput
                 style={[styles.input, styles.precioInput]}
-                placeholder="Precio USD (opcional)"
+                placeholder="0.00 USD"
                 placeholderTextColor={colors.mutedForeground}
                 value={precio}
                 onChangeText={(t) => setPrecio(t.replace(/[^0-9.,]/g, ""))}
@@ -327,6 +328,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, fabBottom: number) {
       fontSize: 15, color: colors.foreground, backgroundColor: colors.muted,
       fontFamily: "Inter_400Regular",
     },
+    fieldLabel: { fontSize: 13, fontWeight: "600", color: colors.mutedForeground, fontFamily: "Inter_600SemiBold", marginBottom: 6, marginTop: 4 },
     precioRow: { flexDirection: "row", alignItems: "center", gap: 10 },
     precioSimbolo: { fontSize: 20, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold" },
     precioInput: { flex: 1 },

@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { Sounds } from "@/utils/sounds";
+import { pedirPermisoNotificaciones, programarAlertasPedidos, programarRecordatorioDiario } from "@/utils/notifications";
 import { Image } from "expo-image";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -100,6 +101,12 @@ export default function PedidosScreen() {
       setPedidos(p);
       setAlmacenes(a);
       setTodosArticulos(arts);
+      pedirPermisoNotificaciones().then((ok) => {
+        if (ok) {
+          programarAlertasPedidos(p);
+          programarRecordatorioDiario(p);
+        }
+      });
     });
   }, []));
 
@@ -143,6 +150,7 @@ export default function PedidosScreen() {
       articulos: articulosPedido,
       notas: notas.trim() || undefined,
       creadoEn: fechaHoy(),
+      fechaUltimoEstado: fechaHoy(),
     };
     const lista = [nuevo, ...pedidos];
     setPedidos(lista);
@@ -234,15 +242,19 @@ export default function PedidosScreen() {
   }
 
   async function actualizarEstado(id: string, estado: EstadoPedido, almacen?: Almacen) {
+    const hoy = fechaHoy();
     const lista = pedidos.map(p => {
       if (p.id !== id) return p;
       const extra = almacen
         ? { almacenId: almacen.id, almacenNombre: almacen.nombre }
-        : {};          // no sobreescribir si no se pasa almacén
-      return { ...p, estado, ...extra };
+        : {};
+      return { ...p, estado, fechaUltimoEstado: hoy, ...extra };
     });
     setPedidos(lista);
     await savePedidos(lista);
+    pedirPermisoNotificaciones().then(ok => {
+      if (ok) { programarAlertasPedidos(lista); programarRecordatorioDiario(lista); }
+    });
   }
 
   async function enviarAlmacen(almacen: Almacen) {
@@ -501,7 +513,7 @@ export default function PedidosScreen() {
                     )}
                     <Text style={s.pickNombre}>{item.nombre}</Text>
                     {item.precio != null && (
-                      <Text style={s.pickPrecio}>${item.precio.toFixed(2)}</Text>
+                      <Text style={s.pickPrecio}>💲{item.precio.toFixed(2)}/u</Text>
                     )}
                     <Feather name="plus-circle" size={18} color={colors.primary} />
                   </TouchableOpacity>
