@@ -1,26 +1,49 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-import { ThemeId } from "@/constants/colors";
+import { CustomThemeConfig, DEFAULT_CUSTOM, ThemeId } from "@/constants/colors";
 
 const THEME_KEY = "inventario_tema";
+const CUSTOM_KEY = "inventario_tema_custom";
 
 interface ThemeContextValue {
   themeId: ThemeId;
   setThemeId: (id: ThemeId) => void;
+  customConfig: CustomThemeConfig;
+  setCustomConfig: (cfg: CustomThemeConfig) => void;
+}
+
+function sanitizeCustom(p: Partial<CustomThemeConfig>): CustomThemeConfig {
+  const hue = typeof p.hue === "number" && Number.isFinite(p.hue) ? Math.min(360, Math.max(0, p.hue)) : DEFAULT_CUSTOM.hue;
+  const sat = typeof p.sat === "number" && Number.isFinite(p.sat) ? Math.min(100, Math.max(0, p.sat)) : DEFAULT_CUSTOM.sat;
+  const mode = p.mode === "claro" || p.mode === "oscuro" ? p.mode : DEFAULT_CUSTOM.mode;
+  return { hue, sat, mode };
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
   themeId: "azul",
   setThemeId: () => {},
+  customConfig: DEFAULT_CUSTOM,
+  setCustomConfig: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeId, setThemeIdState] = useState<ThemeId>("azul");
+  const [customConfig, setCustomConfigState] = useState<CustomThemeConfig>(DEFAULT_CUSTOM);
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_KEY).then((v) => {
       if (v) setThemeIdState(v as ThemeId);
+    });
+    AsyncStorage.getItem(CUSTOM_KEY).then((v) => {
+      if (v) {
+        try {
+          const parsed = JSON.parse(v) as Partial<CustomThemeConfig>;
+          setCustomConfigState(sanitizeCustom(parsed));
+        } catch {
+          // ignore corrupt value
+        }
+      }
     });
   }, []);
 
@@ -29,8 +52,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(THEME_KEY, id);
   }
 
+  function setCustomConfig(cfg: CustomThemeConfig) {
+    setCustomConfigState(cfg);
+    AsyncStorage.setItem(CUSTOM_KEY, JSON.stringify(cfg));
+  }
+
   return (
-    <ThemeContext.Provider value={{ themeId, setThemeId }}>
+    <ThemeContext.Provider value={{ themeId, setThemeId, customConfig, setCustomConfig }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -1,1 +1,2 @@
 - [Expo web blank page debugging](expo-web-blank-page.md) — blank screen + 500 on `entry.bundle` + "MIME application/json not executable" = Metro compile error; curl the bundle URL to get the real file:line.
+- [RN Modal stuck open on web](rnw-modal-stuck-open.md) — a `Modal animationType="fade"` won't close on web if a heavy re-render (app-wide restyle) fires in the same handler; use `animationType="none"`.

@@ -1,4 +1,5 @@
-export type ThemeId = "azul" | "verde" | "morado" | "naranja" | "oscuro";
+export type PresetThemeId = "azul" | "verde" | "morado" | "naranja" | "oscuro";
+export type ThemeId = PresetThemeId | "custom";
 
 export interface ColorPalette {
   text: string;
@@ -31,7 +32,7 @@ export interface ColorPalette {
   estadoAlmacenBg: string;
 }
 
-const themes: Record<ThemeId, ColorPalette> = {
+const themes: Record<PresetThemeId, ColorPalette> = {
   azul: {
     text: "#11131a",
     tint: "#3b5bdb",
@@ -179,7 +180,97 @@ const themes: Record<ThemeId, ColorPalette> = {
   },
 };
 
-export const TEMAS: { id: ThemeId; label: string; color: string }[] = [
+// ── Custom theme support ──────────────────────────────────────────────
+export interface CustomThemeConfig {
+  hue: number; // 0-360
+  sat: number; // 0-100
+  mode: "claro" | "oscuro";
+}
+
+export const DEFAULT_CUSTOM: CustomThemeConfig = { hue: 280, sat: 72, mode: "claro" };
+
+function clamp(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, n));
+}
+
+export function hslToHex(h: number, s: number, l: number): string {
+  h = ((h % 360) + 360) % 360;
+  s = clamp(s, 0, 100) / 100;
+  l = clamp(l, 0, 100) / 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) { r = c; g = x; b = 0; }
+  else if (h < 120) { r = x; g = c; b = 0; }
+  else if (h < 180) { r = 0; g = c; b = x; }
+  else if (h < 240) { r = 0; g = x; b = c; }
+  else if (h < 300) { r = x; g = 0; b = c; }
+  else { r = c; g = 0; b = x; }
+  const toHex = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+export function buildCustomPalette(cfg: CustomThemeConfig): ColorPalette {
+  const { hue, sat, mode } = cfg;
+  if (mode === "oscuro") {
+    const primary = hslToHex(hue, Math.min(sat + 10, 95), 70);
+    return {
+      text: hslToHex(hue, 20, 95),
+      tint: primary,
+      background: hslToHex(hue, 16, 7),
+      foreground: hslToHex(hue, 20, 95),
+      card: hslToHex(hue, 14, 11),
+      cardForeground: hslToHex(hue, 20, 95),
+      primary,
+      primaryForeground: hslToHex(hue, 35, 10),
+      secondary: hslToHex(hue, 32, 20),
+      secondaryForeground: hslToHex(hue, 55, 82),
+      muted: hslToHex(hue, 12, 15),
+      mutedForeground: hslToHex(hue, 10, 60),
+      accent: hslToHex(hue, 32, 22),
+      accentForeground: hslToHex(hue, 55, 82),
+      destructive: "#f03e3e",
+      destructiveForeground: "#ffffff",
+      border: "rgba(255,255,255,0.08)",
+      input: "rgba(255,255,255,0.10)",
+      shadow: primary,
+      estadoComprado: "#38bdf8", estadoCompradoBg: "#0c2233",
+      estadoCasillero: "#fbbf24", estadoCasilleroBg: "#241c04",
+      estadoEnviado: "#a78bfa", estadoEnviadoBg: "#1a1040",
+      estadoAlmacen: "#34d399", estadoAlmacenBg: "#072718",
+    };
+  }
+  const primary = hslToHex(hue, sat, 50);
+  const darkText = hslToHex(hue, Math.max(sat * 0.3, 15), 11);
+  return {
+    text: darkText,
+    tint: primary,
+    background: hslToHex(hue, Math.min(sat, 42), 97),
+    foreground: darkText,
+    card: "#ffffff",
+    cardForeground: darkText,
+    primary,
+    primaryForeground: "#ffffff",
+    secondary: hslToHex(hue, Math.min(sat, 78), 92),
+    secondaryForeground: hslToHex(hue, Math.min(sat, 85), 38),
+    muted: hslToHex(hue, Math.min(sat, 30), 95),
+    mutedForeground: hslToHex(hue, Math.min(sat, 22), 47),
+    accent: hslToHex(hue, Math.min(sat, 78), 89),
+    accentForeground: hslToHex(hue, Math.min(sat, 85), 38),
+    destructive: "#e03131",
+    destructiveForeground: "#ffffff",
+    border: hslToHex(hue, Math.min(sat, 42), 90),
+    input: hslToHex(hue, Math.min(sat, 42), 90),
+    shadow: primary,
+    estadoComprado: "#0284c7", estadoCompradoBg: "#e0f2fe",
+    estadoCasillero: "#b45309", estadoCasilleroBg: "#fef3c7",
+    estadoEnviado: "#7c3aed", estadoEnviadoBg: "#ede9fe",
+    estadoAlmacen: "#059669", estadoAlmacenBg: "#d1fae5",
+  };
+}
+
+export const TEMAS: { id: PresetThemeId; label: string; color: string }[] = [
   { id: "azul",    label: "Azul",    color: "#3b5bdb" },
   { id: "verde",   label: "Verde",   color: "#2f9e44" },
   { id: "morado",  label: "Morado",  color: "#6741d9" },
