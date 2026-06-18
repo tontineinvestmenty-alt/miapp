@@ -392,40 +392,47 @@ export default function PedidosScreen() {
       </View>
 
       {/* ── Filtro por estado ── */}
-      <View style={s.filtroWrap}>
-        {/* Chip "Todos" */}
-        <TouchableOpacity
-          style={[s.chip, filtroEstado === null && s.chipActivo]}
-          onPress={() => { Sounds.tap(); setFiltroEstado(null); }}
-          activeOpacity={0.75}
-        >
-          <Text style={[s.chipTxt, filtroEstado === null && s.chipTxtActivo]}>
-            Todos
-          </Text>
-          <View style={[s.chipBadge, filtroEstado === null && s.chipBadgeActivo]}>
-            <Text style={[s.chipBadgeTxt, filtroEstado === null && s.chipBadgeTxtActivo]}>
-              {pedidos.length}
-            </Text>
-          </View>
-        </TouchableOpacity>
+      <View style={s.segContainer}>
+        {/* Segmento "Todos" */}
+        {(() => {
+          const activo = filtroEstado === null;
+          return (
+            <TouchableOpacity
+              style={[s.seg, activo && [s.segActivo, { shadowColor: colors.primary }]]}
+              onPress={() => { Sounds.tap(); setFiltroEstado(null); }}
+              activeOpacity={0.75}
+            >
+              <Feather name="layers" size={14} color={activo ? colors.primary : colors.mutedForeground} />
+              <Text style={[s.segLabel, activo && { color: colors.primary, fontFamily: "Inter_700Bold" }]}>Todos</Text>
+              {pedidos.length > 0 && (
+                <View style={[s.segBadge, activo && { backgroundColor: colors.primary }]}>
+                  <Text style={[s.segBadgeTxt, activo && { color: "#fff" }]}>{pedidos.length}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })()}
 
         {ESTADOS.map(e => {
           const activo = filtroEstado === e.key;
           const n = conteoEstados[e.key] ?? 0;
+          const SHORT: Record<string, string> = {
+            comprado: "Compra", en_casillero: "Casillero", enviado_cuba: "A Cuba", en_almacen: "Almacén",
+          };
           return (
             <TouchableOpacity
               key={e.key}
-              style={[s.chip, activo && { backgroundColor: e.bg, borderColor: e.color }]}
+              style={[s.seg, activo && [s.segActivo, { shadowColor: e.color }]]}
               onPress={() => { Sounds.tap(); setFiltroEstado(activo ? null : e.key); }}
               activeOpacity={0.75}
             >
-              <Feather name={e.icono as any} size={13} color={activo ? e.color : colors.mutedForeground} />
-              <Text style={[s.chipTxt, activo && { color: e.color, fontFamily: "Inter_700Bold" }]}>
-                {e.label}
+              <Feather name={e.icono as any} size={14} color={activo ? e.color : colors.mutedForeground} />
+              <Text style={[s.segLabel, activo && { color: e.color, fontFamily: "Inter_700Bold" }]}>
+                {SHORT[e.key] ?? e.label}
               </Text>
               {n > 0 && (
-                <View style={[s.chipBadge, activo && { backgroundColor: e.color }]}>
-                  <Text style={[s.chipBadgeTxt, activo && s.chipBadgeTxtActivo]}>{n}</Text>
+                <View style={[s.segBadge, activo && { backgroundColor: e.color }]}>
+                  <Text style={[s.segBadgeTxt, activo && { color: "#fff" }]}>{n}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -920,24 +927,38 @@ function makeStyles(colors: ReturnType<typeof useColors>, fabBottom: number) {
     searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: colors.card, paddingHorizontal: 16, paddingVertical: 10, gap: 10, marginHorizontal: 16, marginTop: 12, marginBottom: 0, borderRadius: 16, ...cardShadow },
     searchIco: {},
     searchInput: { flex: 1, fontSize: 14, color: colors.foreground, fontFamily: "Inter_400Regular", paddingVertical: 4 },
-    // chips de filtro
-    filtroWrap: {
-      flexDirection: "row", flexWrap: "wrap",
-      paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6, gap: 8,
+    // segmented control de filtro
+    segContainer: {
+      flexDirection: "row",
+      marginHorizontal: 16, marginTop: 10, marginBottom: 4,
+      backgroundColor: colors.muted,
+      borderRadius: 18, padding: 4, gap: 2,
     },
-    chip: {
-      flexDirection: "row", alignItems: "center", gap: 6,
-      paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-      backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.border,
-      ...cardShadow,
+    seg: {
+      flex: 1, alignItems: "center", justifyContent: "center",
+      paddingVertical: 9, borderRadius: 14, gap: 3,
     },
-    chipActivo: { backgroundColor: colors.accent, borderColor: colors.primary },
-    chipTxt: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground },
-    chipTxtActivo: { color: colors.primary, fontFamily: "Inter_700Bold" },
-    chipBadge: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-    chipBadgeActivo: { backgroundColor: colors.primary },
-    chipBadgeTxt: { fontSize: 11, fontWeight: "700", fontFamily: "Inter_700Bold", color: colors.mutedForeground },
-    chipBadgeTxtActivo: { color: "#fff" },
+    segActivo: {
+      backgroundColor: colors.card,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.18,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    segLabel: {
+      fontSize: 10, fontFamily: "Inter_600SemiBold",
+      color: colors.mutedForeground, textAlign: "center",
+    },
+    segBadge: {
+      minWidth: 16, height: 16, borderRadius: 8,
+      backgroundColor: colors.border,
+      alignItems: "center", justifyContent: "center", paddingHorizontal: 3,
+    },
+    segBadgeTxt: {
+      fontSize: 9, fontWeight: "700", fontFamily: "Inter_700Bold",
+      color: colors.mutedForeground,
+    },
     lista: { padding: 16, gap: 10, paddingBottom: TAB_BAR_HEIGHT + 80 },
     vacio: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 14 },
     vacioTitulo: { fontSize: 22, fontWeight: "700", color: colors.foreground, fontFamily: "Inter_700Bold" },
