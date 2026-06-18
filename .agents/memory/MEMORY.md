@@ -2,3 +2,4 @@
 - [Expo SDK 54 filesystem & media](expo-sdk54-fs-media.md) — classic FS API lives at `expo-file-system/legacy`; copy picker cache URIs into documentDirectory to persist; expo-audio (native) / HTML5 Audio (web) with fallback.
 - [RN Modal stuck open on web](rnw-modal-stuck-open.md) — a `Modal animationType="fade"` won't close on web if a heavy re-render (app-wide restyle) fires in the same handler; use `animationType="none"`.
 - [Inventario stock model & transfers](inventario-stock-model.md) — stock is one AsyncStorage map keyed `almacenId::articuloId`; any cross-key move must be one atomic read-modify-write deriving moved=min(req,available).
+- [RN Web flex TextInput overflow](rnw-flex-input-overflow.md) — a `flex:1` TextInput in a row overflows off-screen on RN Web; add `minWidth: 0` so it can shrink.

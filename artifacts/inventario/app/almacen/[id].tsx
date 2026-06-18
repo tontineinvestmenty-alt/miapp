@@ -558,7 +558,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, insets: ReturnType<typ
     tipoBtnTexto: { fontSize: 13, fontWeight: "500", color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" },
     cantRow: { flexDirection: "row", alignItems: "center", gap: 12 },
     cantBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center" },
-    cantInput: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 10, fontSize: 22, fontWeight: "700", color: colors.foreground, backgroundColor: colors.background, fontFamily: "Inter_700Bold" },
+    cantInput: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 10, fontSize: 22, fontWeight: "700", color: colors.foreground, backgroundColor: colors.background, fontFamily: "Inter_700Bold" },
     modalBotones: { flexDirection: "row", gap: 10 },
     boton: { flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: "center" },
     botonCancelar: { backgroundColor: colors.muted },
