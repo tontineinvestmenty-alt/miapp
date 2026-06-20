@@ -5,3 +5,4 @@
 - [RN Modal stuck open on web](rnw-modal-stuck-open.md) — a `Modal animationType="fade"` won't close on web if a heavy re-render (app-wide restyle) fires in the same handler; use `animationType="none"`.
 - [Inventario stock model & transfers](inventario-stock-model.md) — stock is one AsyncStorage map keyed `almacenId::articuloId`; any cross-key move must be one atomic read-modify-write deriving moved=min(req,available).
 - [RN Web flex TextInput overflow](rnw-flex-input-overflow.md) — a `flex:1` TextInput in a row overflows off-screen on RN Web; add `minWidth: 0` so it can shrink.
+- [Push to GitHub via connector](github-push-via-connector.md) — when Git pane hangs and manual PATs get 401, use the Replit GitHub connector token and `git push` from code_execution.
